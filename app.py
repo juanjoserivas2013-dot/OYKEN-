@@ -3,12 +3,28 @@ import pandas as pd
 from pathlib import Path
 from datetime import date
 
+# =========================
+# CONFIG
+# =========================
 st.set_page_config(page_title="OYKEN · Ventas", layout="centered")
 st.title("OYKEN · Ventas")
 
 DATA_FILE = Path("ventas.csv")
 
-# --- Cargar datos ---
+# Días en español (sin locale del sistema)
+DAYS_ES = {
+    "Monday": "Lunes",
+    "Tuesday": "Martes",
+    "Wednesday": "Miércoles",
+    "Thursday": "Jueves",
+    "Friday": "Viernes",
+    "Saturday": "Sábado",
+    "Sunday": "Domingo",
+}
+
+# =========================
+# CARGA DE DATOS
+# =========================
 if DATA_FILE.exists():
     df = pd.read_csv(DATA_FILE, parse_dates=["fecha"])
 else:
@@ -21,7 +37,7 @@ else:
     ])
 
 # =========================
-# REGISTRO DIARIO (ALTA)
+# REGISTRO DIARIO
 # =========================
 st.subheader("Registro diario")
 
@@ -57,7 +73,8 @@ if guardar:
     df = pd.concat([df, nueva], ignore_index=True)
     df = df.drop_duplicates(subset=["fecha"], keep="last")
     df.to_csv(DATA_FILE, index=False)
-    st.success("Venta guardada")
+
+    st.success("Venta guardada correctamente")
 
 st.divider()
 
@@ -72,29 +89,34 @@ else:
     df["año"] = df["fecha"].dt.year
     df["mes"] = df["fecha"].dt.month
     df["dia"] = df["fecha"].dt.day
-    df["dow"] = df["fecha"].dt.day_name(locale="es_ES")
+    df["dow"] = df["fecha"].dt.day_name().map(DAYS_ES)
 
     col1, col2 = st.columns(2)
     with col1:
         años = sorted(df["año"].unique())
-        año_sel = st.selectbox("Año", años, index=len(años)-1)
+        año_sel = st.selectbox("Año", años, index=len(años) - 1)
     with col2:
         mes_sel = st.selectbox(
             "Mes",
-            list(range(1,13)),
-            format_func=lambda m: ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                                    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][m-1]
+            list(range(1, 13)),
+            format_func=lambda m: [
+                "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+            ][m - 1]
         )
 
     mensual = (
         df[(df["año"] == año_sel) & (df["mes"] == mes_sel)]
         .sort_values("fecha")
-        [["fecha","dia","dow","ventas_manana_eur","ventas_tarde_eur","ventas_noche_eur","ventas_total_eur"]]
+        [["fecha","dia","dow",
+          "ventas_manana_eur","ventas_tarde_eur","ventas_noche_eur","ventas_total_eur"]]
     )
 
     st.dataframe(mensual, use_container_width=True, hide_index=True)
 
-    # --- Totales ---
+    # =========================
+    # KPIs
+    # =========================
     tot_m = mensual["ventas_manana_eur"].sum()
     tot_t = mensual["ventas_tarde_eur"].sum()
     tot_n = mensual["ventas_noche_eur"].sum()

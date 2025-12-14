@@ -6,8 +6,8 @@ from datetime import date
 # =========================
 # CONFIGURACIÓN
 # =========================
-st.set_page_config(page_title="OYKEN · Control Diario", layout="centered")
-st.title("OYKEN · Control Diario")
+st.set_page_config(page_title="OYKEN · Control Operativo", layout="centered")
+st.title("OYKEN · Control Operativo")
 st.caption("Sistema automático basado en criterio operativo")
 
 DATA_FILE = Path("ventas.csv")
@@ -74,7 +74,7 @@ if guardar:
     df.to_csv(DATA_FILE, index=False)
 
     st.success("Venta guardada correctamente")
-    st.rerun()  # 🔑 CLAVE: fuerza recálculo total
+    st.rerun()
 
 # =========================
 # SI NO HAY DATOS, PARAMOS
@@ -93,7 +93,7 @@ df["dia"] = df["fecha"].dt.day
 df["dow"] = df["fecha"].dt.weekday.map(DOW_ES)
 
 # =========================
-# BLOQUE 1 — HOY (CALENDARIO REAL)
+# BLOQUE 1 — HOY (DEFINITIVO)
 # =========================
 st.divider()
 st.subheader("HOY")
@@ -104,24 +104,15 @@ dow_hoy = DOW_ES[fecha_hoy.weekday()]
 venta_hoy = df[df["fecha"] == fecha_hoy]
 
 if venta_hoy.empty:
-    vm = vt = vn = total_hoy = 0.0
+    vm_h = vt_h = vn_h = total_h = 0.0
 else:
-    fila = venta_hoy.iloc[0]
-    vm = fila["ventas_manana_eur"]
-    vt = fila["ventas_tarde_eur"]
-    vn = fila["ventas_noche_eur"]
-    total_hoy = fila["ventas_total_eur"]
+    fila_h = venta_hoy.iloc[0]
+    vm_h = fila_h["ventas_manana_eur"]
+    vt_h = fila_h["ventas_tarde_eur"]
+    vn_h = fila_h["ventas_noche_eur"]
+    total_h = fila_h["ventas_total_eur"]
 
-c1, c2 = st.columns([2, 1])
-
-with c1:
-    st.markdown(f"**{dow_hoy} · {fecha_hoy.strftime('%d/%m/%Y')}**")
-    st.write(f"Mañana: {vm:.2f} €")
-    st.write(f"Tarde: {vt:.2f} €")
-    st.write(f"Noche: {vn:.2f} €")
-    st.markdown(f"### TOTAL HOY: {total_hoy:.2f} €")
-
-# --- Comparable histórico por mismo DOW ---
+# --- Buscar DOW año anterior ---
 fecha_obj = fecha_hoy.replace(year=fecha_hoy.year - 1)
 
 candidatos = df[
@@ -129,23 +120,78 @@ candidatos = df[
     (df["fecha"].dt.weekday == fecha_hoy.weekday())
 ]
 
+if candidatos.empty:
+    fecha_a_txt = "Sin histórico comparable"
+    vm_a = vt_a = vn_a = total_a = 0.0
+else:
+    candidatos = candidatos.copy()
+    candidatos["dist"] = (candidatos["fecha"] - fecha_obj).abs()
+    comp = candidatos.sort_values("dist").iloc[0]
+
+    fecha_a_txt = f"{DOW_ES[comp['fecha'].weekday()]} · {comp['fecha'].strftime('%d/%m/%Y')}"
+    vm_a = comp["ventas_manana_eur"]
+    vt_a = comp["ventas_tarde_eur"]
+    vn_a = comp["ventas_noche_eur"]
+    total_a = comp["ventas_total_eur"]
+
+def diff_and_pct(actual, base):
+    diff = actual - base
+    pct = (diff / base * 100) if base > 0 else 0
+    return diff, pct
+
+def color_from_value(v):
+    if v > 0:
+        return "green"
+    if v < 0:
+        return "red"
+    return "gray"
+
+d_vm, p_vm = diff_and_pct(vm_h, vm_a)
+d_vt, p_vt = diff_and_pct(vt_h, vt_a)
+d_vn, p_vn = diff_and_pct(vn_h, vn_a)
+d_tot, p_tot = diff_and_pct(total_h, total_a)
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.markdown("**HOY**")
+    st.caption(f"{dow_hoy} · {fecha_hoy.strftime('%d/%m/%Y')}")
+    st.write(f"Mañana: {vm_h:.2f} €")
+    st.write(f"Tarde: {vt_h:.2f} €")
+    st.write(f"Noche: {vn_h:.2f} €")
+    st.markdown(f"### TOTAL HOY: {total_h:.2f} €")
+
 with c2:
-    st.markdown("**Comparativa histórica (mismo DOW)**")
-    if candidatos.empty:
-        st.info("Sin histórico comparable")
-    else:
-        candidatos = candidatos.copy()
-        candidatos["dist"] = (candidatos["fecha"] - fecha_obj).abs()
-        comp = candidatos.sort_values("dist").iloc[0]
+    st.markdown("**DOW (Año anterior)**")
+    st.caption(fecha_a_txt)
+    st.write(f"Mañana: {vm_a:.2f} €")
+    st.write(f"Tarde: {vt_a:.2f} €")
+    st.write(f"Noche: {vn_a:.2f} €")
+    st.markdown(f"### TOTAL DOW: {total_a:.2f} €")
 
-        dif = total_hoy - comp["ventas_total_eur"]
-        pct = (dif / comp["ventas_total_eur"] * 100) if comp["ventas_total_eur"] > 0 else 0
+with c3:
+    st.markdown("**Variación**")
+    st.caption("Lectura orientativa basada en histórico disponible")
 
-        st.write(f"{comp['dow']} {comp['fecha'].strftime('%d/%m/%Y')}")
-        st.metric("Diferencia", f"{dif:+.2f} €", f"{pct:+.1f} %")
+    st.markdown(
+        f"Mañana: <span style='color:{color_from_value(d_vm)}'>{d_vm:+.2f} € ({p_vm:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"Tarde: <span style='color:{color_from_value(d_vt)}'>{d_vt:+.2f} € ({p_vt:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"Noche: <span style='color:{color_from_value(d_vn)}'>{d_vn:+.2f} € ({p_vn:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"### TOTAL: <span style='color:{color_from_value(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
 
 # =========================
-# BLOQUE 2 — ACUMULADO MENSUAL AUTOMÁTICO
+# BLOQUE 2 — RESUMEN MENSUAL AUTOMÁTICO
 # =========================
 st.divider()
 st.subheader("Resumen mensual automático")
@@ -159,7 +205,6 @@ total_mes = df_mes["ventas_total_eur"].sum()
 dias_mes = df_mes["ventas_total_eur"].gt(0).sum()
 prom_mes = total_mes / dias_mes if dias_mes else 0
 
-# --- Mes anterior ---
 if mes_actual == 1:
     mes_ant = 12
     año_ant = año_actual - 1
@@ -194,8 +239,8 @@ with c2:
 with c3:
     st.markdown(f"**Diferencia · {MESES_ES[mes_actual-1]} vs {MESES_ES[mes_ant-1]}**")
     st.metric("€ vs mes anterior", f"{dif_total:+,.2f}")
-    st.metric("Δ días de venta", f"{dif_dias:+d}")
-    st.metric("Δ promedio diario", f"{dif_pct:+.1f} %")
+    st.metric("Δ días", f"{dif_dias:+d}")
+    st.metric("Δ promedio", f"{dif_pct:+.1f} %")
 
 # =========================
 # BLOQUE 3 — BITÁCORA DEL MES

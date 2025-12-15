@@ -4,9 +4,9 @@ from pathlib import Path
 from datetime import date
 
 # =========================
-# CONFIGURACIÓN
+# CONFIGURACIÓN GENERAL
 # =========================
-st.set_page_config(page_title="OYKEN · Control Ventas Diarias", layout="centered")
+st.set_page_config(page_title="OYKEN · Control Operativo", layout="centered")
 st.title("OYKEN · Control Operativo")
 st.caption("Sistema automático basado en criterio operativo")
 
@@ -22,19 +22,29 @@ MESES_ES = [
     "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
 ]
 
+COLUMNAS_BASE = [
+    "fecha",
+    "ventas_manana_eur",
+    "ventas_tarde_eur",
+    "ventas_noche_eur",
+    "ventas_total_eur",
+    "observaciones"
+]
+
 # =========================
-# CARGA DE DATOS (ÚNICA FUENTE DE VERDAD)
+# CARGA DE DATOS (FUENTE ÚNICA)
 # =========================
 if DATA_FILE.exists():
     df = pd.read_csv(DATA_FILE, parse_dates=["fecha"])
 else:
-    df = pd.DataFrame(columns=[
-        "fecha",
-        "ventas_manana_eur",
-        "ventas_tarde_eur",
-        "ventas_noche_eur",
-        "ventas_total_eur",
-    ])
+    df = pd.DataFrame(columns=COLUMNAS_BASE)
+
+# Blindaje por CSV antiguos
+for col in COLUMNAS_BASE:
+    if col not in df.columns:
+        df[col] = ""
+
+df["observaciones"] = df["observaciones"].fillna("")
 
 # =========================
 # REGISTRO DIARIO (ÚNICA ACCIÓN HUMANA)
@@ -56,6 +66,12 @@ with st.form("form_ventas"):
     with c3:
         vn = st.number_input("Noche (€)", min_value=0.0, step=10.0)
 
+    observaciones = st.text_area(
+        "Observaciones del día",
+        placeholder="Climatología, eventos, incidencias, promociones, obras, festivos…",
+        height=100
+    )
+
     guardar = st.form_submit_button("Guardar venta")
 
 if guardar:
@@ -66,18 +82,19 @@ if guardar:
         "ventas_manana_eur": vm,
         "ventas_tarde_eur": vt,
         "ventas_noche_eur": vn,
-        "ventas_total_eur": total
+        "ventas_total_eur": total,
+        "observaciones": observaciones.strip()
     }])
 
     df = pd.concat([df, nueva], ignore_index=True)
     df = df.drop_duplicates(subset=["fecha"], keep="last")
     df.to_csv(DATA_FILE, index=False)
 
-    st.success("Venta guardada correctamente")
+    st.success("Venta y observaciones guardadas correctamente")
     st.rerun()
 
 # =========================
-# SI NO HAY DATOS, PARAMOS
+# SI NO HAY DATOS
 # =========================
 if df.empty:
     st.info("Aún no hay ventas registradas.")
@@ -93,16 +110,14 @@ df["dia"] = df["fecha"].dt.day
 df["dow"] = df["fecha"].dt.weekday.map(DOW_ES)
 
 # =========================
-# BLOQUE 1 — HOY + OBSERVACIONES OPERATIVAS
+# BLOQUE HOY
 # =========================
 st.divider()
 st.subheader("HOY")
 
-# --- Fecha real ---
 fecha_hoy = pd.to_datetime(date.today())
 dow_hoy = DOW_ES[fecha_hoy.weekday()]
 
-# --- Venta HOY ---
 venta_hoy = df[df["fecha"] == fecha_hoy]
 
 if venta_hoy.empty:
@@ -114,9 +129,9 @@ else:
     vt_h = fila_h["ventas_tarde_eur"]
     vn_h = fila_h["ventas_noche_eur"]
     total_h = fila_h["ventas_total_eur"]
-    obs_hoy = fila_h.get("observaciones", "")
+    obs_hoy = fila_h["observaciones"]
 
-# --- Buscar DOW año anterior ---
+# --- DOW año anterior ---
 fecha_obj = fecha_hoy.replace(year=fecha_hoy.year - 1)
 
 candidatos = df[
@@ -138,7 +153,6 @@ else:
     vn_a = comp["ventas_noche_eur"]
     total_a = comp["ventas_total_eur"]
 
-# --- Funciones auxiliares ---
 def diff_and_pct(actual, base):
     diff = actual - base
     pct = (diff / base * 100) if base > 0 else 0
@@ -151,18 +165,13 @@ def color(v):
         return "red"
     return "gray"
 
-# --- Diferencias ---
 d_vm, p_vm = diff_and_pct(vm_h, vm_a)
 d_vt, p_vt = diff_and_pct(vt_h, vt_a)
 d_vn, p_vn = diff_and_pct(vn_h, vn_a)
 d_tot, p_tot = diff_and_pct(total_h, total_a)
 
-# =========================
-# DISPOSICIÓN VISUAL (3 COLUMNAS)
-# =========================
 c1, c2, c3 = st.columns(3)
 
-# --- COLUMNA HOY ---
 with c1:
     st.markdown("**HOY**")
     st.caption(f"{dow_hoy} · {fecha_hoy.strftime('%d/%m/%Y')}")
@@ -171,7 +180,6 @@ with c1:
     st.write(f"Noche: {vn_h:.2f} €")
     st.markdown(f"### TOTAL HOY: {total_h:.2f} €")
 
-# --- COLUMNA DOW AÑO ANTERIOR ---
 with c2:
     st.markdown("**DOW (Año anterior)**")
     st.caption(fecha_a_txt)
@@ -180,113 +188,41 @@ with c2:
     st.write(f"Noche: {vn_a:.2f} €")
     st.markdown(f"### TOTAL DOW: {total_a:.2f} €")
 
-# --- COLUMNA VARIACIÓN ---
 with c3:
     st.markdown("**Variación**")
     st.caption("Lectura orientativa basada en histórico disponible")
-
-    st.markdown(
-        f"Mañana: <span style='color:{color(d_vm)}'>{d_vm:+.2f} € ({p_vm:+.1f}%)</span>",
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f"Tarde: <span style='color:{color(d_vt)}'>{d_vt:+.2f} € ({p_vt:+.1f}%)</span>",
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f"Noche: <span style='color:{color(d_vn)}'>{d_vn:+.2f} € ({p_vn:+.1f}%)</span>",
-        unsafe_allow_html=True
-    )
-    st.markdown(
-        f"### TOTAL: <span style='color:{color(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>",
-        unsafe_allow_html=True
-    )
-
+    st.markdown(f"TOTAL: <span style='color:{color(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>", unsafe_allow_html=True)
 
 # =========================
-# BLOQUE OBSERVACIONES OPERATIVAS
+# OBSERVACIONES DEL DÍA (LECTURA)
 # =========================
 st.divider()
 st.subheader("OBSERVACIONES OPERATIVAS — BITÁCORA DEL DÍA")
 
-observaciones_input = st.text_area(
+st.text_area(
     "Observaciones del día",
     value=obs_hoy if obs_hoy else "",
-    height=120,
-    placeholder="Climatología, eventos, incidencias, promociones, obras, festivos…"
+    height=120
 )
 
 # =========================
-# BLOQUE 2 — RESUMEN MENSUAL AUTOMÁTICO
-# =========================
-st.divider()
-st.subheader("Resumen mensual automático")
-
-mes_actual = fecha_hoy.month
-año_actual = fecha_hoy.year
-
-df_mes = df[(df["mes"] == mes_actual) & (df["año"] == año_actual)]
-
-total_mes = df_mes["ventas_total_eur"].sum()
-dias_mes = df_mes["ventas_total_eur"].gt(0).sum()
-prom_mes = total_mes / dias_mes if dias_mes else 0
-
-if mes_actual == 1:
-    mes_ant = 12
-    año_ant = año_actual - 1
-else:
-    mes_ant = mes_actual - 1
-    año_ant = año_actual
-
-df_ant = df[(df["mes"] == mes_ant) & (df["año"] == año_ant)]
-
-total_ant = df_ant["ventas_total_eur"].sum()
-dias_ant = df_ant["ventas_total_eur"].gt(0).sum()
-prom_ant = total_ant / dias_ant if dias_ant else 0
-
-dif_total = total_mes - total_ant
-dif_dias = dias_mes - dias_ant
-dif_pct = ((prom_mes / prom_ant) - 1) * 100 if prom_ant > 0 else 0
-
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    st.markdown(f"**Mes actual · {MESES_ES[mes_actual-1]} {año_actual}**")
-    st.metric("Total acumulado (€)", f"{total_mes:,.2f}")
-    st.metric("Días con venta", dias_mes)
-    st.metric("Promedio diario (€)", f"{prom_mes:,.2f}")
-
-with c2:
-    st.markdown(f"**Mes anterior · {MESES_ES[mes_ant-1]} {año_ant}**")
-    st.metric("Total mes (€)", f"{total_ant:,.2f}")
-    st.metric("Días con venta", dias_ant)
-    st.metric("Promedio diario (€)", f"{prom_ant:,.2f}")
-
-with c3:
-    st.markdown(f"**Diferencia · {MESES_ES[mes_actual-1]} vs {MESES_ES[mes_ant-1]}**")
-    st.metric("€ vs mes anterior", f"{dif_total:+,.2f}")
-    st.metric("Δ días", f"{dif_dias:+d}")
-    st.metric("Δ promedio", f"{dif_pct:+.1f} %")
-
-
-# =========================
-# BLOQUE 3 — BITÁCORA DEL MES
+# BITÁCORA DEL MES
 # =========================
 st.divider()
 st.subheader("Ventas del mes (bitácora viva)")
 
-# Formato de fecha para visualización
-df_mes_view = df_mes.copy()
-df_mes_view["fecha"] = df_mes_view["fecha"].dt.strftime("%d-%m-%Y")
+df_mes = df[(df["mes"] == fecha_hoy.month) & (df["año"] == fecha_hoy.year)].copy()
+df_mes["fecha"] = df_mes["fecha"].dt.strftime("%d-%m-%Y")
 
 st.dataframe(
-    df_mes_view[[
+    df_mes[[
         "fecha",
         "dow",
         "ventas_manana_eur",
         "ventas_tarde_eur",
         "ventas_noche_eur",
-        "ventas_total_eur"
+        "ventas_total_eur",
+        "observaciones"
     ]],
     hide_index=True,
     use_container_width=True

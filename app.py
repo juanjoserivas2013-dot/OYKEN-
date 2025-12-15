@@ -113,7 +113,7 @@ df["dia"] = df["fecha"].dt.day
 df["dow"] = df["fecha"].dt.weekday.map(DOW_ES)
 
 # =========================
-# BLOQUE HOY
+# BLOQUE HOY — MICRO-UX AFINADO
 # =========================
 st.divider()
 st.subheader("HOY")
@@ -121,6 +121,7 @@ st.subheader("HOY")
 fecha_hoy = pd.to_datetime(date.today())
 dow_hoy = DOW_ES[fecha_hoy.weekday()]
 
+# --- Venta HOY ---
 venta_hoy = df[df["fecha"] == fecha_hoy]
 
 if venta_hoy.empty:
@@ -134,20 +135,18 @@ else:
 
 # --- Buscar DOW año anterior ---
 fecha_obj = fecha_hoy.replace(year=fecha_hoy.year - 1)
-
 cand = df[
     (df["año"] == fecha_obj.year) &
     (df["fecha"].dt.weekday == fecha_hoy.weekday())
 ]
 
 if cand.empty:
-    fecha_a_txt = "Sin histórico comparable"
+    fecha_a_txt = "Sin histórico comparable (aún)"
     vm_a = vt_a = vn_a = total_a = 0.0
 else:
     cand = cand.copy()
     cand["dist"] = (cand["fecha"] - fecha_obj).abs()
     comp = cand.sort_values("dist").iloc[0]
-
     fecha_a_txt = f"{DOW_ES[comp['fecha'].weekday()]} · {comp['fecha'].strftime('%d/%m/%Y')}"
     vm_a = comp["ventas_manana_eur"]
     vt_a = comp["ventas_tarde_eur"]
@@ -160,10 +159,8 @@ def diff_and_pct(actual, base):
     return diff, pct
 
 def color(v):
-    if v > 0:
-        return "green"
-    if v < 0:
-        return "red"
+    if v > 0: return "green"
+    if v < 0: return "red"
     return "gray"
 
 d_vm, p_vm = diff_and_pct(vm_h, vm_a)
@@ -173,32 +170,57 @@ d_tot, p_tot = diff_and_pct(total_h, total_a)
 
 c1, c2, c3 = st.columns(3)
 
+# --- HOY ---
 with c1:
     st.markdown("**HOY**")
     st.caption(f"{dow_hoy} · {fecha_hoy.strftime('%d/%m/%Y')}")
-    st.write(f"Mañana: {vm_h:.2f} €")
-    st.write(f"Tarde: {vt_h:.2f} €")
-    st.write(f"Noche: {vn_h:.2f} €")
-    st.markdown(f"### TOTAL HOY: {total_h:.2f} €")
+    st.write("**Mañana**")
+    st.write(f"{vm_h:,.2f} €")
+    st.write("**Tarde**")
+    st.write(f"{vt_h:,.2f} €")
+    st.write("**Noche**")
+    st.write(f"{vn_h:,.2f} €")
+    st.markdown("---")
+    st.markdown(f"### TOTAL HOY\n{total_h:,.2f} €")
 
+# --- DOW ---
 with c2:
     st.markdown("**DOW (Año anterior)**")
     st.caption(fecha_a_txt)
-    st.write(f"Mañana: {vm_a:.2f} €")
-    st.write(f"Tarde: {vt_a:.2f} €")
-    st.write(f"Noche: {vn_a:.2f} €")
-    st.markdown(f"### TOTAL DOW: {total_a:.2f} €")
-
-with c3:
-    st.markdown("**Variación**")
-    st.caption("Vs. DOW año anterior")
-
-    st.markdown(f"Mañana: <span style='color:{color(d_vm)}'>{d_vm:+.2f} € ({p_vm:+.1f}%)</span>", unsafe_allow_html=True)
-    st.markdown(f"Tarde: <span style='color:{color(d_vt)}'>{d_vt:+.2f} € ({p_vt:+.1f}%)</span>", unsafe_allow_html=True)
-    st.markdown(f"Noche: <span style='color:{color(d_vn)}'>{d_vn:+.2f} € ({p_vn:+.1f}%)</span>", unsafe_allow_html=True)
-
+    st.write("**Mañana**")
+    st.write(f"{vm_a:,.2f} €")
+    st.write("**Tarde**")
+    st.write(f"{vt_a:,.2f} €")
+    st.write("**Noche**")
+    st.write(f"{vn_a:,.2f} €")
     st.markdown("---")
-    st.markdown(f"### TOTAL: <span style='color:{color(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>", unsafe_allow_html=True)
+    st.markdown(f"### TOTAL DOW\n{total_a:,.2f} €")
+
+# --- VARIACIÓN ---
+with c3:
+    st.markdown("**VARIACIÓN**")
+    st.caption("Vs. DOW año anterior")
+    st.markdown(
+        f"**Mañana**  "
+        f"<span style='color:{color(d_vm)}'>{d_vm:+,.2f} € ({p_vm:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"**Tarde**  "
+        f"<span style='color:{color(d_vt)}'>{d_vt:+,.2f} € ({p_vt:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f"**Noche**  "
+        f"<span style='color:{color(d_vn)}'>{d_vn:+,.2f} € ({p_vn:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+    st.markdown(
+        f"### TOTAL  "
+        f"<span style='color:{color(d_tot)}'>{d_tot:+,.2f} € ({p_tot:+.1f}%)</span>",
+        unsafe_allow_html=True
+    )
 
 # =========================
 # BITÁCORA DEL MES (👁️)

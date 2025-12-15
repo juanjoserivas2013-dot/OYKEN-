@@ -7,7 +7,11 @@ from datetime import date
 # CONFIGURACIÓN
 # =========================
 st.set_page_config(page_title="OYKEN · Control Operativo", layout="centered")
+
 st.title("OYKEN · Control Operativo")
+st.markdown(
+    "**Entra en Oyken. En 30 segundos entiendes mejor tu negocio.**"
+)
 st.caption("Sistema automático basado en criterio operativo")
 
 DATA_FILE = Path("ventas.csv")
@@ -46,12 +50,16 @@ for col in COLUMNAS:
 df["observaciones"] = df["observaciones"].fillna("")
 
 # =========================
-# REGISTRO DIARIO
+# REGISTRO DIARIO (ÚNICA ACCIÓN HUMANA)
 # =========================
 st.subheader("Registro diario")
 
-with st.form("form_ventas"):
-    fecha = st.date_input("Fecha", value=date.today(), format="DD/MM/YYYY")
+with st.form("form_ventas", clear_on_submit=True):
+    fecha = st.date_input(
+        "Fecha",
+        value=date.today(),
+        format="DD/MM/YYYY"
+    )
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -84,6 +92,7 @@ if guardar:
     df = pd.concat([df, nueva], ignore_index=True)
     df = df.drop_duplicates(subset=["fecha"], keep="last")
     df.to_csv(DATA_FILE, index=False)
+
     st.success("Venta guardada correctamente")
     st.rerun()
 
@@ -116,14 +125,12 @@ venta_hoy = df[df["fecha"] == fecha_hoy]
 
 if venta_hoy.empty:
     vm_h = vt_h = vn_h = total_h = 0.0
-    obs_hoy = ""
 else:
     fila = venta_hoy.iloc[0]
     vm_h = fila["ventas_manana_eur"]
     vt_h = fila["ventas_tarde_eur"]
     vn_h = fila["ventas_noche_eur"]
     total_h = fila["ventas_total_eur"]
-    obs_hoy = fila["observaciones"]
 
 # --- Buscar DOW año anterior ---
 fecha_obj = fecha_hoy.replace(year=fecha_hoy.year - 1)
@@ -192,14 +199,6 @@ with c3:
 
     st.markdown("---")
     st.markdown(f"### TOTAL: <span style='color:{color(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>", unsafe_allow_html=True)
-
-# =========================
-# OBSERVACIONES DEL DÍA
-# =========================
-st.divider()
-st.subheader("OBSERVACIONES OPERATIVAS — BITÁCORA DEL DÍA")
-
-st.text_area("Observaciones del día", value=obs_hoy, height=120)
 
 # =========================
 # BITÁCORA DEL MES (👁️)

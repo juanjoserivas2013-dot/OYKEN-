@@ -139,6 +139,7 @@ def fila_o_cero(col):
 if not venta_hoy.empty:
     fila = venta_hoy.iloc[0]
 
+# --- HOY ---
 vm_h = fila_o_cero("ventas_manana_eur")
 vt_h = fila_o_cero("ventas_tarde_eur")
 vn_h = fila_o_cero("ventas_noche_eur")
@@ -152,6 +153,12 @@ tm_h = fila_o_cero("tickets_manana")
 tt_h = fila_o_cero("tickets_tarde")
 tn_h = fila_o_cero("tickets_noche")
 
+# Ticket medio HOY
+tmed_m_h = vm_h / tm_h if tm_h > 0 else 0
+tmed_t_h = vt_h / tt_h if tt_h > 0 else 0
+tmed_n_h = vn_h / tn_h if tn_h > 0 else 0
+tmed_tot_h = total_h / (tm_h + tt_h + tn_h) if (tm_h + tt_h + tn_h) > 0 else 0
+
 # =========================
 # DOW AÑO ANTERIOR (MISMA SEMANA ISO)
 # =========================
@@ -163,6 +170,7 @@ dow_ant = df[
 
 if dow_ant.empty:
     fecha_dow_txt = "Sin histórico comparable"
+
     vm_a = vt_a = vn_a = total_a = 0.0
     cm_a = ct_a = cn_a = 0
     tm_a = tt_a = tn_a = 0
@@ -183,35 +191,54 @@ else:
     tt_a = comp["tickets_tarde"]
     tn_a = comp["tickets_noche"]
 
+# Ticket medio DOW
+tmed_m_a = vm_a / tm_a if tm_a > 0 else 0
+tmed_t_a = vt_a / tt_a if tt_a > 0 else 0
+tmed_n_a = vn_a / tn_a if tn_a > 0 else 0
+tmed_tot_a = total_a / (tm_a + tt_a + tn_a) if (tm_a + tt_a + tn_a) > 0 else 0
+
 # =========================
 # FUNCIONES VARIACIÓN
 # =========================
-def diff_pct(a, b):
-    d = a - b
-    p = (d / b * 100) if b > 0 else 0
+def diff_pct(actual, base):
+    d = actual - base
+    p = (d / base * 100) if base > 0 else (100.0 if actual > 0 else 0.0)
     return d, p
 
 def color(v):
     return "green" if v > 0 else "red" if v < 0 else "gray"
 
 def icono(p):
-    if p >= 30:
-        return "👁️"
-    if p >= 1:
+    if p > 0:
         return "↑"
-    if p <= -30:
-        return "⚠️"
-    if p <= -1:
+    if p < 0:
         return "↓"
     return ""
 
 # =========================
-# CÁLCULOS
+# CÁLCULOS VARIACIÓN
 # =========================
+# Ventas
 d_vm, p_vm = diff_pct(vm_h, vm_a)
 d_vt, p_vt = diff_pct(vt_h, vt_a)
 d_vn, p_vn = diff_pct(vn_h, vn_a)
 d_tot, p_tot = diff_pct(total_h, total_a)
+
+# Comensales
+d_cm = cm_h - cm_a
+d_ct = ct_h - ct_a
+d_cn = cn_h - cn_a
+
+# Tickets
+d_tm = tm_h - tm_a
+d_tt = tt_h - tt_a
+d_tn = tn_h - tn_a
+
+# Ticket medio
+d_tmed_m, p_tmed_m = diff_pct(tmed_m_h, tmed_m_a)
+d_tmed_t, p_tmed_t = diff_pct(tmed_t_h, tmed_t_a)
+d_tmed_n, p_tmed_n = diff_pct(tmed_n_h, tmed_n_a)
+d_tmed_tot, p_tmed_tot = diff_pct(tmed_tot_h, tmed_tot_a)
 
 # =========================
 # DISPOSICIÓN VISUAL
@@ -226,17 +253,21 @@ with c1:
     st.write("**Mañana**")
     st.write(f"{vm_h:,.2f} €")
     st.caption(f"{cm_h} comensales · {tm_h} tickets")
+    st.caption(f"Ticket medio: {tmed_m_h:,.2f} €")
 
     st.write("**Tarde**")
     st.write(f"{vt_h:,.2f} €")
     st.caption(f"{ct_h} comensales · {tt_h} tickets")
+    st.caption(f"Ticket medio: {tmed_t_h:,.2f} €")
 
     st.write("**Noche**")
     st.write(f"{vn_h:,.2f} €")
     st.caption(f"{cn_h} comensales · {tn_h} tickets")
+    st.caption(f"Ticket medio: {tmed_n_h:,.2f} €")
 
     st.markdown("---")
     st.markdown(f"### TOTAL HOY\n{total_h:,.2f} €")
+    st.caption(f"Ticket medio: {tmed_tot_h:,.2f} €")
 
 # DOW
 with c2:
@@ -246,66 +277,66 @@ with c2:
     st.write("**Mañana**")
     st.write(f"{vm_a:,.2f} €")
     st.caption(f"{cm_a} comensales · {tm_a} tickets")
+    st.caption(f"Ticket medio: {tmed_m_a:,.2f} €")
 
     st.write("**Tarde**")
     st.write(f"{vt_a:,.2f} €")
     st.caption(f"{ct_a} comensales · {tt_a} tickets")
+    st.caption(f"Ticket medio: {tmed_t_a:,.2f} €")
 
     st.write("**Noche**")
     st.write(f"{vn_a:,.2f} €")
     st.caption(f"{cn_a} comensales · {tn_a} tickets")
+    st.caption(f"Ticket medio: {tmed_n_a:,.2f} €")
 
     st.markdown("---")
     st.markdown(f"### TOTAL DOW\n{total_a:,.2f} €")
+    st.caption(f"Ticket medio: {tmed_tot_a:,.2f} €")
 
-# VARIACIÓN 
+# VARIACIÓN
 with c3:
     st.markdown("**VARIACIÓN**")
     st.caption("Vs. DOW año anterior")
 
-    # MAÑANA
     st.write("**Mañana**")
     st.markdown(
-        f"<span style='color:{color(d_vm)}'>"
-        f"{d_vm:+,.2f} € ({p_vm:+.1f}%) {icono(p_vm)}"
-        f"</span>",
+        f"<span style='color:{color(d_vm)}'>{d_vm:+,.2f} € ({p_vm:+.1f}%) {icono(p_vm)}</span>",
         unsafe_allow_html=True
     )
-    st.caption(f"{(cm_h - cm_a):+} comensales · {(tm_h - tm_a):+} tickets")
+    st.caption(f"{d_cm:+} comensales · {d_tm:+} tickets")
+    st.caption(
+        f"Ticket medio: {d_tmed_m:+.2f} € ({p_tmed_m:+.1f}%) {icono(p_tmed_m)}"
+    )
 
-    # TARDE
     st.write("**Tarde**")
     st.markdown(
-        f"<span style='color:{color(d_vt)}'>"
-        f"{d_vt:+,.2f} € ({p_vt:+.1f}%) {icono(p_vt)}"
-        f"</span>",
+        f"<span style='color:{color(d_vt)}'>{d_vt:+,.2f} € ({p_vt:+.1f}%) {icono(p_vt)}</span>",
         unsafe_allow_html=True
     )
-    st.caption(f"{(ct_h - ct_a):+} comensales · {(tt_h - tt_a):+} tickets")
+    st.caption(f"{d_ct:+} comensales · {d_tt:+} tickets")
+    st.caption(
+        f"Ticket medio: {d_tmed_t:+.2f} € ({p_tmed_t:+.1f}%) {icono(p_tmed_t)}"
+    )
 
-    # NOCHE
     st.write("**Noche**")
     st.markdown(
-        f"<span style='color:{color(d_vn)}'>"
-        f"{d_vn:+,.2f} € ({p_vn:+.1f}%) {icono(p_vn)}"
-        f"</span>",
+        f"<span style='color:{color(d_vn)}'>{d_vn:+,.2f} € ({p_vn:+.1f}%) {icono(p_vn)}</span>",
         unsafe_allow_html=True
     )
-    st.caption(f"{(cn_h - cn_a):+} comensales · {(tn_h - tn_a):+} tickets")
+    st.caption(f"{d_cn:+} comensales · {d_tn:+} tickets")
+    st.caption(
+        f"Ticket medio: {d_tmed_n:+.2f} € ({p_tmed_n:+.1f}%) {icono(p_tmed_n)}"
+    )
 
     st.markdown("---")
-
-    # TOTAL
-    st.write("**TOTAL**")
     st.markdown(
         f"<span style='color:{color(d_tot)}'>"
-        f"{d_tot:+,.2f} € ({p_tot:+.1f}%)"
+        f"### TOTAL {d_tot:+,.2f} € ({p_tot:+.1f}%)"
         f"</span>",
         unsafe_allow_html=True
     )
     st.caption(
-        f"{(cm_h + ct_h + cn_h - cm_a - ct_a - cn_a):+} comensales · "
-        f"{(tm_h + tt_h + tn_h - tm_a - tt_a - tn_a):+} tickets"
+        f"Ticket medio: {d_tmed_tot:+.2f} € ({p_tmed_tot:+.1f}%) {icono(p_tmed_tot)}"
     )
 
 # =========================

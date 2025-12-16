@@ -331,7 +331,7 @@ with c3:
     st.markdown("---")
     st.markdown(
         f"<span style='color:{color(d_tot)}'>"
-        f"### TOTAL {d_tot:+,.2f} € ({p_tot:+.1f}%)"
+        f" TOTAL {d_tot:+,.2f} € ({p_tot:+.1f}%)"
         f"</span>",
         unsafe_allow_html=True
     )

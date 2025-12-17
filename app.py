@@ -20,12 +20,9 @@ menu = st.sidebar.selectbox(
 
 if menu == "Control Operativo":
 
-
-
-
-st.title("OYKEN · Control Operativo")
-st.markdown("**Entra en Oyken. En 30 segundos entiendes mejor tu negocio.**")
-st.caption("Sistema automático basado en criterio operativo")
+    st.title("OYKEN · Control Operativo")
+    st.markdown("**Entra en Oyken. En 30 segundos entiendes mejor tu negocio.**")
+    st.caption("Sistema automático basado en criterio operativo")
 
 DATA_FILE = Path("ventas.csv")
 

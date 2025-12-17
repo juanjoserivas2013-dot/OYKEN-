@@ -16,10 +16,11 @@ st.caption("Sistema automático basado en criterio operativo")
 # DESPLEGABLE PRINCIPAL
 # =========================
 st.divider()
-seccion = st.selectbox(
+seccion = st.sidebar.selectbox(
     "Sección",
     ["Registro diario", "Comportamiento", "Tendencia", "Oyken Core"]
 )
+
 
 DATA_FILE = Path("ventas.csv")
 

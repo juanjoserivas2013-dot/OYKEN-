@@ -6,10 +6,6 @@ from datetime import date
 # =========================
 # CONFIGURACIÓN
 # =========================
-st.set_page_config(
-    page_title="OYKEN · Comportamiento",
-    layout="centered"
-)
 
 st.title("OYKEN · Comportamiento del cliente")
 st.caption("Cómo compra el cliente · Semana en curso")

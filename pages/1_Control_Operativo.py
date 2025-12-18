@@ -208,7 +208,7 @@ def diff_pct(actual, base):
 def color(v):
     return "green" if v > 0 else "red" if v < 0 else "gray"
 
-def icono_ventas(p):
+def icono(p):
     if p > 25:
         return "👁️"
     elif 1 <= p <= 25:
@@ -219,6 +219,7 @@ def icono_ventas(p):
         return "⚠️"
     else:
         return ""
+
 
 # =========================
 # CÁLCULOS VARIACIÓN

@@ -1,167 +1,297 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
 from pathlib import Path
+from datetime import date
 
 # =========================
-# CONFIGURACIÓN DE PÁGINA
+# CONFIGURACIÓN
 # =========================
-st.set_page_config(
-    page_title="OYKEN · Control Operativo",
-    layout="wide"
-)
-
+st.set_page_config(page_title="OYKEN · Control Operativo", layout="centered")
 st.title("OYKEN · Control Operativo")
-st.caption("Gestión diaria, comparables y criterio operativo")
+st.caption("Sistema automático basado en criterio operativo")
 
-# =========================
-# CARGA DE DATOS
-# =========================
 DATA_FILE = Path("ventas.csv")
 
-if not DATA_FILE.exists():
-    st.warning("⚠️ No se ha encontrado el archivo ventas.csv")
-    st.info("Crea un archivo ventas.csv para activar los comparables.")
+DOW_ES = {
+    0: "Lunes", 1: "Martes", 2: "Miércoles",
+    3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"
+}
+
+MESES_ES = [
+    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+]
+
+# =========================
+# CARGA DE DATOS (ÚNICA FUENTE DE VERDAD)
+# =========================
+if DATA_FILE.exists():
+    df = pd.read_csv(DATA_FILE, parse_dates=["fecha"])
+else:
+    df = pd.DataFrame(columns=[
+        "fecha",
+        "ventas_manana_eur",
+        "ventas_tarde_eur",
+        "ventas_noche_eur",
+        "ventas_total_eur",
+    ])
+
+# =========================
+# REGISTRO DIARIO (ÚNICA ACCIÓN HUMANA)
+# =========================
+st.subheader("Registro diario")
+
+with st.form("form_ventas"):
+    fecha = st.date_input(
+        "Fecha",
+        value=date.today(),
+        format="DD/MM/YYYY"
+    )
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        vm = st.number_input("Mañana (€)", min_value=0.0, step=10.0)
+    with c2:
+        vt = st.number_input("Tarde (€)", min_value=0.0, step=10.0)
+    with c3:
+        vn = st.number_input("Noche (€)", min_value=0.0, step=10.0)
+
+    guardar = st.form_submit_button("Guardar venta")
+
+if guardar:
+    total = vm + vt + vn
+
+    nueva = pd.DataFrame([{
+        "fecha": pd.to_datetime(fecha),
+        "ventas_manana_eur": vm,
+        "ventas_tarde_eur": vt,
+        "ventas_noche_eur": vn,
+        "ventas_total_eur": total
+    }])
+
+    df = pd.concat([df, nueva], ignore_index=True)
+    df = df.drop_duplicates(subset=["fecha"], keep="last")
+    df.to_csv(DATA_FILE, index=False)
+
+    st.success("Venta guardada correctamente")
+    st.rerun()
+
+# =========================
+# SI NO HAY DATOS, PARAMOS
+# =========================
+if df.empty:
+    st.info("Aún no hay ventas registradas.")
     st.stop()
 
-df = pd.read_csv(DATA_FILE)
-
-# Aseguramos tipos
-df["fecha"] = pd.to_datetime(df["fecha"])
-df["ventas"] = pd.to_numeric(df["ventas"], errors="coerce")
-df["tickets"] = pd.to_numeric(df["tickets"], errors="coerce")
-df["comensales"] = pd.to_numeric(df["comensales"], errors="coerce")
+# =========================
+# PREPARACIÓN AUTOMÁTICA
+# =========================
+df = df.sort_values("fecha")
+df["año"] = df["fecha"].dt.year
+df["mes"] = df["fecha"].dt.month
+df["dia"] = df["fecha"].dt.day
+df["dow"] = df["fecha"].dt.weekday.map(DOW_ES)
 
 # =========================
-# FECHAS CLAVE
+# BLOQUE 1 — HOY (DEFINITIVO)
 # =========================
-hoy = date.today()
-ayer = hoy - timedelta(days=1)
-dow_hoy = hoy.weekday()  # lunes = 0
+st.divider()
+st.subheader("HOY")
 
-df_hoy = df[df["fecha"].dt.date == hoy]
-df_ayer = df[df["fecha"].dt.date == ayer]
-df_dow = df[df["fecha"].dt.weekday == dow_hoy]
+fecha_hoy = pd.to_datetime(date.today())
+dow_hoy = DOW_ES[fecha_hoy.weekday()]
 
-# =========================
-# FUNCIONES
-# =========================
-def variacion(actual, referencia):
-    if referencia == 0 or pd.isna(referencia):
-        return 0
-    return (actual - referencia) / referencia * 100
+venta_hoy = df[df["fecha"] == fecha_hoy]
 
+if venta_hoy.empty:
+    vm_h = vt_h = vn_h = total_h = 0.0
+else:
+    fila_h = venta_hoy.iloc[0]
+    vm_h = fila_h["ventas_manana_eur"]
+    vt_h = fila_h["ventas_tarde_eur"]
+    vn_h = fila_h["ventas_noche_eur"]
+    total_h = fila_h["ventas_total_eur"]
 
-def badge_variacion(valor):
-    if valor >= 30:
-        return "👁️"
-    elif valor <= -25:
-        return "⚠️"
-    elif -25 < valor < 25:
-        return "⬆️" if valor > 0 else "⬇️" if valor < 0 else ""
-    return ""
+# --- Buscar DOW año anterior ---
+fecha_obj = fecha_hoy.replace(year=fecha_hoy.year - 1)
 
+candidatos = df[
+    (df["año"] == fecha_obj.year) &
+    (df["fecha"].dt.weekday == fecha_hoy.weekday())
+]
 
-# =========================
-# BLOQUE HOY
-# =========================
-st.subheader("📅 HOY")
+if candidatos.empty:
+    fecha_a_txt = "Sin histórico comparable"
+    vm_a = vt_a = vn_a = total_a = 0.0
+else:
+    candidatos = candidatos.copy()
+    candidatos["dist"] = (candidatos["fecha"] - fecha_obj).abs()
+    comp = candidatos.sort_values("dist").iloc[0]
 
-col1, col2, col3 = st.columns(3)
+    fecha_a_txt = f"{DOW_ES[comp['fecha'].weekday()]} · {comp['fecha'].strftime('%d/%m/%Y')}"
+    vm_a = comp["ventas_manana_eur"]
+    vt_a = comp["ventas_tarde_eur"]
+    vn_a = comp["ventas_noche_eur"]
+    total_a = comp["ventas_total_eur"]
 
-ventas_hoy = df_hoy["ventas"].sum()
-tickets_hoy = df_hoy["tickets"].sum()
-comensales_hoy = df_hoy["comensales"].sum()
+def diff_and_pct(actual, base):
+    diff = actual - base
+    pct = (diff / base * 100) if base > 0 else 0
+    return diff, pct
 
-ventas_ayer = df_ayer["ventas"].sum()
-tickets_ayer = df_ayer["tickets"].sum()
-comensales_ayer = df_ayer["comensales"].sum()
+def color_from_value(v):
+    if v > 0:
+        return "green"
+    if v < 0:
+        return "red"
+    return "gray"
 
-var_ventas = variacion(ventas_hoy, ventas_ayer)
-var_tickets = variacion(tickets_hoy, tickets_ayer)
-var_comensales = variacion(comensales_hoy, comensales_ayer)
+d_vm, p_vm = diff_and_pct(vm_h, vm_a)
+d_vt, p_vt = diff_and_pct(vt_h, vt_a)
+d_vn, p_vn = diff_and_pct(vn_h, vn_a)
+d_tot, p_tot = diff_and_pct(total_h, total_a)
 
-with col1:
-    st.metric(
-        "ventas (€)",
-        f"{ventas_hoy:,.0f}",
-        f"{var_ventas:+.1f}% {badge_variacion(var_ventas)}"
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.markdown("**HOY**")
+    st.caption(f"{dow_hoy} · {fecha_hoy.strftime('%d/%m/%Y')}")
+    st.write(f"Mañana: {vm_h:.2f} €")
+    st.write(f"Tarde: {vt_h:.2f} €")
+    st.write(f"Noche: {vn_h:.2f} €")
+    st.markdown(f"### TOTAL HOY: {total_h:.2f} €")
+
+with c2:
+    st.markdown("**DOW (Año anterior)**")
+    st.caption(fecha_a_txt)
+    st.write(f"Mañana: {vm_a:.2f} €")
+    st.write(f"Tarde: {vt_a:.2f} €")
+    st.write(f"Noche: {vn_a:.2f} €")
+    st.markdown(f"### TOTAL DOW: {total_a:.2f} €")
+
+with c3:
+    st.markdown("**Variación**")
+    st.caption("Lectura orientativa basada en histórico disponible")
+
+    st.markdown(
+        f"Mañana: <span style='color:{color_from_value(d_vm)}'>{d_vm:+.2f} € ({p_vm:+.1f}%)</span>",
+        unsafe_allow_html=True
     )
-    st.caption(f"Comensales: {comensales_hoy}")
-
-with col2:
-    st.metric(
-        "Tickets",
-        f"{tickets_hoy:,.0f}",
-        f"{var_tickets:+.1f}% {badge_variacion(var_tickets)}"
+    st.markdown(
+        f"Tarde: <span style='color:{color_from_value(d_vt)}'>{d_vt:+.2f} € ({p_vt:+.1f}%)</span>",
+        unsafe_allow_html=True
     )
-    st.caption(f"Comensales: {comensales_hoy}")
-
-with col3:
-    st.metric(
-        "Comensales",
-        f"{comensales_hoy:,.0f}",
-        f"{var_comensales:+.1f}% {badge_variacion(var_comensales)}"
+    st.markdown(
+        f"Noche: <span style='color:{color_from_value(d_vn)}'>{d_vn:+.2f} € ({p_vn:+.1f}%)</span>",
+        unsafe_allow_html=True
     )
-
-# =========================
-# BLOQUE DOW
-# =========================
-st.subheader("📊 Comparativa DOW (mismo día de la semana)")
-
-ventas_dow = df_dow["ventas"].mean()
-tickets_dow = df_dow["tickets"].mean()
-comensales_dow = df_dow["comensales"].mean()
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric(
-        "ventas vs DOW",
-        f"{ventas_hoy:,.0f}",
-        f"{variacion(ventas_hoy, ventas_dow):+.1f}% {badge_variacion(variacion(ventas_hoy, ventas_dow))}"
-    )
-
-with col2:
-    st.metric(
-        "Tickets vs DOW",
-        f"{tickets_hoy:,.0f}",
-        f"{variacion(tickets_hoy, tickets_dow):+.1f}% {badge_variacion(variacion(tickets_hoy, tickets_dow))}"
-    )
-
-with col3:
-    st.metric(
-        "Comensales vs DOW",
-        f"{comensales_hoy:,.0f}",
-        f"{variacion(comensales_hoy, comensales_dow):+.1f}% {badge_variacion(variacion(comensales_hoy, comensales_dow))}"
+    st.markdown(
+        f"### TOTAL: <span style='color:{color_from_value(d_tot)}'>{d_tot:+.2f} € ({p_tot:+.1f}%)</span>",
+        unsafe_allow_html=True
     )
 
 # =========================
-# VARIACIONES DETALLADAS
+# BLOQUE 2 — RESUMEN MENSUAL AUTOMÁTICO
 # =========================
-st.subheader("📉 Variaciones detalladas")
+# =========================
+# BLOQUE 2 — RESUMEN MENSUAL AUTOMÁTICO (COLORES OYKEN)
+# =========================
+st.divider()
+st.subheader("Resumen mensual automático")
 
-tabla_variaciones = pd.DataFrame({
-    "Métrica": ["Ventas", "Tickets", "Comensales"],
-    "Hoy": [ventas_hoy, tickets_hoy, comensales_hoy],
-    "Ayer": [ventas_ayer, tickets_ayer, comensales_ayer],
-    "Variación %": [
-        f"{var_ventas:+.1f}%",
-        f"{var_tickets:+.1f}%",
-        f"{var_comensales:+.1f}%"
-    ]
-})
+mes_actual = fecha_hoy.month
+año_actual = fecha_hoy.year
 
-st.dataframe(tabla_variaciones, use_container_width=True)
+df_mes = df[(df["mes"] == mes_actual) & (df["año"] == año_actual)]
+
+total_mes = df_mes["ventas_total_eur"].sum()
+dias_mes = df_mes["ventas_total_eur"].gt(0).sum()
+prom_mes = total_mes / dias_mes if dias_mes else 0
+
+# --- Mes anterior ---
+if mes_actual == 1:
+    mes_ant = 12
+    año_ant = año_actual - 1
+else:
+    mes_ant = mes_actual - 1
+    año_ant = año_actual
+
+df_ant = df[(df["mes"] == mes_ant) & (df["año"] == año_ant)]
+
+total_ant = df_ant["ventas_total_eur"].sum()
+dias_ant = df_ant["ventas_total_eur"].gt(0).sum()
+prom_ant = total_ant / dias_ant if dias_ant else 0
+
+# --- Diferencias ---
+dif_total = total_mes - total_ant
+dif_dias = dias_mes - dias_ant
+dif_pct = ((prom_mes / prom_ant) - 1) * 100 if prom_ant > 0 else 0
+
+# --- Función color ---
+def color_from_value(v):
+    if v > 0:
+        return "green"
+    if v < 0:
+        return "red"
+    return "gray"
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.markdown(f"**Mes actual · {MESES_ES[mes_actual-1]} {año_actual}**")
+    st.metric("Total acumulado (€)", f"{total_mes:,.2f}")
+    st.metric("Días con venta", dias_mes)
+    st.metric("Promedio diario (€)", f"{prom_mes:,.2f}")
+
+with c2:
+    st.markdown(f"**Mes anterior · {MESES_ES[mes_ant-1]} {año_ant}**")
+    st.metric("Total mes (€)", f"{total_ant:,.2f}")
+    st.metric("Días con venta", dias_ant)
+    st.metric("Promedio diario (€)", f"{prom_ant:,.2f}")
+
+with c3:
+    st.markdown(f"**Diferencia · {MESES_ES[mes_actual-1]} vs {MESES_ES[mes_ant-1]}**")
+
+    st.markdown(
+        f"€ vs mes anterior: "
+        f"<span style='color:{color_from_value(dif_total)}'>"
+        f"{dif_total:+,.2f} €</span>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        f"Δ días de venta: "
+        f"<span style='color:{color_from_value(dif_dias)}'>"
+        f"{dif_dias:+d}</span>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        f"Δ promedio diario: "
+        f"<span style='color:{color_from_value(dif_pct)}'>"
+        f"{dif_pct:+.1f} %</span>",
+        unsafe_allow_html=True
+    )
 
 # =========================
-# BITÁCORA OPERATIVA
+# BLOQUE 3 — BITÁCORA DEL MES
 # =========================
-st.subheader("📝 Bitácora operativa")
+st.divider()
+st.subheader("Ventas del mes (bitácora viva)")
 
-with st.form("bitacora"):
-    nota = st.text_area("Observaciones del día")
-    enviar = st.form_submit_button("Guardar")
+# Formato de fecha para visualización
+df_mes_view = df_mes.copy()
+df_mes_view["fecha"] = df_mes_view["fecha"].dt.strftime("%d-%m-%Y")
 
-    if enviar and nota.strip():
-        st.success("Nota registrada (pendiente de persistencia)")
+st.dataframe(
+    df_mes_view[[
+        "fecha",
+        "dow",
+        "ventas_manana_eur",
+        "ventas_tarde_eur",
+        "ventas_noche_eur",
+        "ventas_total_eur"
+    ]],
+    hide_index=True,
+    use_container_width=True
+)

@@ -6,13 +6,17 @@ from datetime import date
 # =========================
 # CONFIGURACIÓN
 # =========================
+st.set_page_config(
+    page_title="OYKEN · Compras",
+    layout="centered"
+)
 
 st.title("OYKEN · Compras")
-st.markdown("**Registro operativo diario del coste real del negocio.**")
+st.markdown("**Registro operativo diario del coste real del negocio**")
 st.caption("Este módulo no analiza. Captura la verdad económica.")
 
 # =========================
-# ESTADO Y DATOS
+# DATOS
 # =========================
 DATA_FILE = Path("compras.csv")
 
@@ -25,7 +29,7 @@ if "compras" not in st.session_state:
         )
 
 if "proveedores" not in st.session_state:
-    st.session_state.proveedores = sorted(
+    st.session_state.proveedores = (
         st.session_state.compras["Proveedor"].dropna().unique().tolist()
         if not st.session_state.compras.empty else []
     )
@@ -33,7 +37,7 @@ if "proveedores" not in st.session_state:
 FAMILIAS = ["Materia prima", "Bebidas", "Limpieza", "Otros"]
 
 # =========================
-# FORMULARIO DE REGISTRO
+# FORMULARIO
 # =========================
 with st.form("registro_compras", clear_on_submit=True):
 
@@ -66,13 +70,11 @@ with st.form("registro_compras", clear_on_submit=True):
         format="%.2f"
     )
 
-    submitted = st.form_submit_button("Registrar compra")
-
-    if submitted:
+    if st.form_submit_button("Registrar compra"):
 
         if proveedor == "+ Añadir proveedor":
             if not nuevo_proveedor:
-                st.warning("Debes introducir el nombre del proveedor.")
+                st.warning("Introduce el nombre del proveedor.")
                 st.stop()
             proveedor = nuevo_proveedor
             if proveedor not in st.session_state.proveedores:
@@ -82,7 +84,7 @@ with st.form("registro_compras", clear_on_submit=True):
             st.warning("El coste debe ser mayor que cero.")
             st.stop()
 
-        nueva_compra = {
+        nueva = {
             "Fecha": fecha.strftime("%d/%m/%Y"),
             "Proveedor": proveedor,
             "Familia": familia,
@@ -90,15 +92,15 @@ with st.form("registro_compras", clear_on_submit=True):
         }
 
         st.session_state.compras = pd.concat(
-            [st.session_state.compras, pd.DataFrame([nueva_compra])],
+            [st.session_state.compras, pd.DataFrame([nueva])],
             ignore_index=True
         )
 
         st.session_state.compras.to_csv(DATA_FILE, index=False)
-        st.success("Compra registrada correctamente.")
+        st.success("Compra registrada correctamente")
 
 # =========================
-# VISUALIZACIÓN Y CONTROL
+# VISUALIZACIÓN
 # =========================
 st.divider()
 
@@ -135,4 +137,4 @@ else:
             .reset_index(drop=True)
         )
         st.session_state.compras.to_csv(DATA_FILE, index=False)
-        st.success("Compra eliminada correctamente.")
+        st.success("Compra eliminada correctamente")

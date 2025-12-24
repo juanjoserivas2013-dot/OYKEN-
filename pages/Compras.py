@@ -153,10 +153,32 @@ with st.container(border=True):
 
         st.success("Proveedor guardado")
 
-    if st.session_state.proveedores:
-        st.markdown("**Proveedores existentes**")
-        for p in st.session_state.proveedores:
-            st.write(f"• {p}")
+if st.session_state.proveedores:
+    st.markdown("**Proveedores existentes**")
+
+    proveedores = st.session_state.proveedores
+    filas = [proveedores[i:i+3] for i in range(0, len(proveedores), 3)]
+
+    for fila in filas:
+        cols = st.columns(3)
+        for i, proveedor in enumerate(fila):
+            with cols[i]:
+                st.markdown(
+                    f"""
+                    <div style="
+                        border: 1px solid #e0e0e0;
+                        border-radius: 6px;
+                        padding: 8px 12px;
+                        text-align: center;
+                        font-weight: 500;
+                        background-color: #fafafa;
+                        ">
+                        {proveedor}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
 
 # =========================================================
 # RESUMEN

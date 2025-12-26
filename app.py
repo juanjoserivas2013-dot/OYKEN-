@@ -7,5 +7,5 @@ st.set_page_config(
 )
 
 st.title("OYKEN")
-st.caption("Sistema operativo de gestión")
+st.caption("Consultoría creadora de Soluciones Generativas, apoyada en infraestructura cognitiva Propia")
 st.markdown("Selecciona un módulo en el menú lateral")

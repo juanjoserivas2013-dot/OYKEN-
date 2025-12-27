@@ -3,12 +3,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import date
 
-# =====================================================
-# CABECERA
-# =====================================================
 st.title("OYKEN · Gastos")
-st.markdown("**Registro de gastos operativos no ligados a compras de producto.**")
-st.caption("Aquí se captura la estructura fija y variable del negocio.")
 
 # =====================================================
 # ARCHIVO DE DATOS

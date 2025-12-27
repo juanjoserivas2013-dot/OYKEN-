@@ -6,10 +6,6 @@ from datetime import date
 # =========================
 # CONFIGURACIÓN
 # =========================
-st.set_page_config(
-    page_title="OYKEN · Mermas",
-    layout="centered"
-)
 
 st.title("OYKEN · Mermas")
 st.markdown("**Registro operativo de pérdidas de producto**")

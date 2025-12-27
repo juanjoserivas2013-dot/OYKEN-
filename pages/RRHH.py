@@ -135,5 +135,4 @@ st.dataframe(df_totales, hide_index=True)
 
 st.caption(
     "Este módulo construye el coste salarial completo. "
-    "La cuenta de resultados se desarrolla en el siguiente bloque."
 )

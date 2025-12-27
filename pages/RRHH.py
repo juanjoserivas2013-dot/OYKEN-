@@ -1,194 +1,139 @@
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 
 # =========================
-# CONFIGURACIÓN DE PÁGINA
+# CONFIGURACIÓN GENERAL
 # =========================
+st.set_page_config(
+    page_title="OYKEN · RRHH",
+    layout="centered"
+)
 
-st.title("OYKEN · Costes de Personal")
-st.caption("Estructura económica del capital humano")
+st.title("OYKEN · RRHH")
+st.caption("Estructura salarial y costes de personal")
+
+MESES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+]
 
 # =========================
-# DATOS
+# FASE 1 — PERSONAL NECESARIO
 # =========================
-DATA_FILE = Path("costes_personal.csv")
+st.subheader("Fase 1 · Personal necesario")
 
-if DATA_FILE.exists():
-    df = pd.read_csv(DATA_FILE)
-else:
-    df = pd.DataFrame(
-        columns=[
-            "Mes", "Año",
-            "Coste total (€)",
-            "Incluye SS",
-            "Incluye variables",
-            "Observaciones"
-        ]
+if "rrhh_personal" not in st.session_state:
+    st.session_state.rrhh_personal = pd.DataFrame(
+        columns=["Puesto", "Bruto anual (€)"] + MESES
     )
 
-# =========================
-# SELECCIÓN DE PERIODO
-# =========================
+with st.form("form_personal", clear_on_submit=True):
+
+    puesto = st.text_input("Puesto")
+    bruto_anual = st.number_input("Bruto anual (€)", min_value=0.0, step=500.0)
+
+    cols = st.columns(6)
+    necesidades = {}
+    for i, mes in enumerate(MESES):
+        with cols[i % 6]:
+            necesidades[mes] = st.number_input(
+                mes, min_value=0, step=1, key=f"n_{mes}"
+            )
+
+    submitted = st.form_submit_button("Añadir puesto")
+
+    if submitted and puesto:
+        fila = {"Puesto": puesto, "Bruto anual (€)": bruto_anual}
+        fila.update(necesidades)
+
+        st.session_state.rrhh_personal = pd.concat(
+            [st.session_state.rrhh_personal, pd.DataFrame([fila])],
+            ignore_index=True
+        )
+
+if not st.session_state.rrhh_personal.empty:
+    st.dataframe(st.session_state.rrhh_personal, hide_index=True)
+
 st.divider()
-st.subheader("Periodo de registro")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    mes = st.selectbox(
-        "Mes",
-        [
-            "Enero", "Febrero", "Marzo", "Abril",
-            "Mayo", "Junio", "Julio", "Agosto",
-            "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        ]
-    )
-
-with col2:
-    año = st.selectbox(
-        "Año",
-        list(range(2022, 2031)),
-        index=3
-    )
-
-st.caption("El registro es mensual. OYKEN no impone fechas.")
 
 # =========================
-# REGISTRO DE COSTE
+# FASE 2 — COSTE DE PERSONAL
 # =========================
+st.subheader("Fase 2 · Coste de personal (nómina)")
+
+if st.session_state.rrhh_personal.empty:
+    st.info("Introduce personal para calcular el coste.")
+    st.stop()
+
+tabla_coste = []
+
+for _, row in st.session_state.rrhh_personal.iterrows():
+    bruto_mensual = row["Bruto anual (€)"] / 12
+
+    fila = {"Puesto": row["Puesto"]}
+    for mes in MESES:
+        fila[mes] = round(bruto_mensual * row[mes], 2)
+
+    tabla_coste.append(fila)
+
+df_coste = pd.DataFrame(tabla_coste)
+st.session_state.rrhh_coste_personal = df_coste
+
+st.dataframe(df_coste, hide_index=True, use_container_width=True)
+
 st.divider()
-st.subheader("Registro de coste mensual")
-
-with st.form("form_coste_personal", clear_on_submit=True):
-
-    coste = st.number_input(
-        "Coste total de personal (€)",
-        min_value=0.0,
-        step=100.0,
-        format="%.2f"
-    )
-
-    col3, col4 = st.columns(2)
-    with col3:
-        incluye_ss = st.checkbox("Incluye Seguridad Social")
-    with col4:
-        incluye_var = st.checkbox("Incluye variables / extras")
-
-    observaciones = st.text_input(
-        "Observaciones internas (opcional)"
-    )
-
-    guardar = st.form_submit_button("Registrar coste del mes")
-
-    if guardar:
-
-        if coste <= 0:
-            st.warning("El coste debe ser mayor que 0 €")
-            st.stop()
-
-        # Si ya existe el mes, se sustituye
-        df = df[~((df["Mes"] == mes) & (df["Año"] == año))]
-
-        nuevo = {
-            "Mes": mes,
-            "Año": año,
-            "Coste total (€)": round(coste, 2),
-            "Incluye SS": incluye_ss,
-            "Incluye variables": incluye_var,
-            "Observaciones": observaciones
-        }
-
-        df = pd.concat([df, pd.DataFrame([nuevo])], ignore_index=True)
-        df.to_csv(DATA_FILE, index=False)
-
-        st.success("Coste mensual registrado correctamente.")
 
 # =========================
-# RESUMEN DEL MES
+# FASE 3 — SEGURIDAD SOCIAL
 # =========================
+st.subheader("Fase 3 · Seguridad Social y coste salarial")
+
+aplicar_ss = st.checkbox("Aplicar Seguridad Social Empresa (33%)", value=True)
+
+SS_EMPRESA = 0.33
+SS_TRABAJADOR = 0.18
+RETENCION = 0.02
+
+tabla_final = []
+
+for _, row in df_coste.iterrows():
+
+    fila = {"Puesto": row["Puesto"]}
+
+    for mes in MESES:
+        nomina = row[mes]
+        ss_empresa = nomina * SS_EMPRESA if aplicar_ss else 0
+
+        fila[f"{mes} · Nómina"] = round(nomina, 2)
+        fila[f"{mes} · SS Empresa"] = round(ss_empresa, 2)
+        fila[f"{mes} · Coste Empresa"] = round(nomina + ss_empresa, 2)
+
+    tabla_final.append(fila)
+
+df_final = pd.DataFrame(tabla_final)
+st.dataframe(df_final, hide_index=True, use_container_width=True)
+
 st.divider()
-st.subheader(f"Resumen · {mes} {año}")
-
-registro = df[(df["Mes"] == mes) & (df["Año"] == año)]
-
-if registro.empty:
-    st.info("No hay coste registrado para este periodo.")
-else:
-    coste_mes = registro.iloc[0]["Coste total (€)"]
-    coste_diario = coste_mes / 30
-
-    st.markdown(f"""
-    - **Coste total de personal:** **{coste_mes:,.2f} €**
-    - **Días operativos considerados:** 30
-    - **Coste medio diario:** **{coste_diario:,.2f} € / día**
-    """)
-
-    st.caption("El coste diario es una referencia estructural.")
 
 # =========================
-# CONTEXTO SECTOR HORECA
+# TOTALES
 # =========================
-st.divider()
-st.subheader("Contexto sector Horeca")
+st.subheader("Totales mensuales")
 
-tabla_contexto = pd.DataFrame({
-    "Tipo de negocio": [
-        "Cafetería / Bar",
-        "Restaurante informal",
-        "Restaurante servicio completo",
-        "Restaurante premium",
-        "Dark kitchen / delivery"
-    ],
-    "Rango estructural": [
-        "25% – 32%",
-        "28% – 35%",
-        "30% – 38%",
-        "35% – 45%",
-        "20% – 28%"
-    ]
-})
+totales = []
 
-st.table(tabla_contexto)
-st.caption("Referencias estructurales. No son objetivos ni evaluaciones.")
+for mes in MESES:
+    totales.append({
+        "Mes": mes,
+        "Nómina (€)": round(df_final[f"{mes} · Nómina"].sum(), 2),
+        "Seguridad Social (€)": round(df_final[f"{mes} · SS Empresa"].sum(), 2),
+        "Coste Empresa (€)": round(df_final[f"{mes} · Coste Empresa"].sum(), 2),
+    })
 
-# =========================
-# HISTÓRICO
-# =========================
-st.divider()
-st.subheader("Histórico de costes de personal")
+df_totales = pd.DataFrame(totales)
+st.dataframe(df_totales, hide_index=True)
 
-if df.empty:
-    st.info("No hay registros históricos.")
-else:
-    df_hist = df.sort_values(["Año", "Mes"])
-    df_hist["Coste diario (€)"] = df_hist["Coste total (€)"] / 30
-
-    st.dataframe(
-        df_hist[[
-            "Mes", "Año",
-            "Coste total (€)",
-            "Coste diario (€)"
-        ]],
-        hide_index=True,
-        use_container_width=True
-    )
-
-    idx = st.selectbox(
-        "Eliminar registro",
-        df_hist.index,
-        format_func=lambda i: f'{df_hist.loc[i,"Mes"]} {df_hist.loc[i,"Año"]}'
-    )
-
-    if st.button("Eliminar"):
-        df = df.drop(idx).reset_index(drop=True)
-        df.to_csv(DATA_FILE, index=False)
-        st.success("Registro eliminado correctamente.")
-
-# =========================
-# NOTA OYKEN
-# =========================
 st.caption(
-    "OYKEN no evalúa personas. "
-    "Analiza estructuras para proteger la rentabilidad y la sostenibilidad."
+    "Este módulo construye el coste salarial completo. "
+    "La cuenta de resultados se desarrolla en el siguiente bloque."
 )

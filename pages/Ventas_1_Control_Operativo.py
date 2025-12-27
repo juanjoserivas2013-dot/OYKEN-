@@ -374,3 +374,50 @@ st.dataframe(
     hide_index=True,
     use_container_width=True
 )
+
+# =========================
+# CIERRE MENSUAL · VENTAS
+# =========================
+st.divider()
+st.subheader("Cierre mensual · Ventas")
+
+c_mes, c_ano = st.columns(2)
+
+with c_mes:
+    mes_sel = st.selectbox(
+        "Mes",
+        options=list(range(1, 13)),
+        index=date.today().month - 1,
+        format_func=lambda x: pd.to_datetime(f"2025-{x}-01").strftime("%B").capitalize()
+    )
+
+with c_ano:
+    anos_disponibles = sorted(df["fecha"].dt.year.unique(), reverse=True)
+    ano_sel = st.selectbox("Año", options=anos_disponibles)
+
+df_mes_cierre = df[
+    (df["fecha"].dt.month == mes_sel) &
+    (df["fecha"].dt.year == ano_sel)
+]
+
+ventas_mes = df_mes_cierre["ventas_total_eur"].sum()
+dias_con_venta = df_mes_cierre.shape[0]
+
+tickets_mes = (
+    df_mes_cierre["tickets_manana"].sum() +
+    df_mes_cierre["tickets_tarde"].sum() +
+    df_mes_cierre["tickets_noche"].sum()
+)
+
+ticket_medio_mes = ventas_mes / tickets_mes if tickets_mes > 0 else 0
+
+st.markdown(f"""
+**Ventas totales del mes**  
+{ventas_mes:,.2f} €
+
+**Días con venta registrada**  
+{dias_con_venta}
+
+**Ticket medio mensual**  
+{ticket_medio_mes:,.2f} €
+""")

@@ -29,7 +29,7 @@ if "gastos" not in st.session_state:
 # =====================================================
 # CATEGORÍAS BASE OYKEN
 # =====================================================
-CATEGORIAS = [
+CATEGORIAS_v1 = [
     "Alquiler",
     "Suministros",
     "Mantenimiento",

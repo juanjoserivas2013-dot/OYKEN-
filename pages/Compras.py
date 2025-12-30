@@ -239,57 +239,53 @@ with st.container(border=True):
 # =========================================================
 # BASE CUENTA DE RESULTADOS — COMPRAS MENSUALES
 # =========================================================
-
 st.divider()
-st.subheader("Base Cuenta de Resultados — Compras mensuales")
+st.subheader("Base Cuenta de Resultados — Gastos mensuales")
 
-# Fuente única: st.session_state.compras
-if not st.session_state.compras.empty:
-
-    df_base = st.session_state.compras.copy()
-
-    # Asegurar fecha como datetime
-    df_base["Fecha"] = pd.to_datetime(
-        df_base["Fecha"],
-        dayfirst=True,
-        errors="coerce"
+if st.session_state.gastos.empty:
+    st.info("No hay gastos suficientes para generar la base mensual.")
+else:
+    # Selección de año
+    anios = (
+        pd.to_datetime(
+            st.session_state.gastos["Fecha"],
+            format="%d/%m/%Y"
+        )
+        .dt.year
+        .unique()
     )
 
-    # Selector de año (solo para esta base)
     anio_base = st.selectbox(
-        "Año base para Cuenta de Resultados (Compras)",
-        sorted(df_base["Fecha"].dt.year.dropna().unique()),
-        index=len(sorted(df_base["Fecha"].dt.year.dropna().unique())) - 1
+        "Año base para Cuenta de Resultados (Gastos)",
+        sorted(anios)
     )
 
-    df_anio = df_base[df_base["Fecha"].dt.year == anio_base]
+    df = st.session_state.gastos.copy()
 
-    resumen_compras = (
-        df_anio
-        .groupby(df_anio["Fecha"].dt.month)["Coste (€)"]
+    df["Fecha_dt"] = pd.to_datetime(df["Fecha"], format="%d/%m/%Y")
+    df = df[df["Fecha_dt"].dt.year == anio_base]
+
+    df["Mes_num"] = df["Fecha_dt"].dt.month
+
+    resumen = (
+        df.groupby("Mes_num")["Coste (€)"]
         .sum()
         .reindex(range(1, 13), fill_value=0)
         .reset_index()
     )
 
-    resumen_compras.columns = ["Mes", "Compras (€)"]
-
-    resumen_compras["Mes"] = [
+    resumen["Mes"] = [
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     ]
 
+    resumen = resumen[["Mes", "Coste (€)"]]
+
     st.dataframe(
-        resumen_compras,
+        resumen,
         hide_index=True,
         use_container_width=True
     )
 
-    st.metric(
-        "Total anual compras",
-        f"{resumen_compras['Compras (€)'].sum():,.2f} €"
-    )
-
-else:
-    st.info("No hay compras registradas para construir la base mensual.")
-
+    total_anual = resumen["Coste (€)"].sum()
+    st.markdown(f"**Total anual gastos:** {total_anual:,.2f} €")

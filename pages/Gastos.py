@@ -149,8 +149,8 @@ if st.button("Eliminar gasto"):
 st.divider()
 st.subheader("Base Cuenta de Resultados — Gastos mensuales")
 
-# 🔒 Cargar datos de gastos desde origen, NO desde la UI
-df_base = cargar_gastos()
+# Reutilizamos el dataframe real de Gastos
+df_base = df.copy()
 
 if df_base.empty:
     st.info("No hay gastos registrados todavía.")

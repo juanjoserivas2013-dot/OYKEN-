@@ -142,43 +142,4 @@ if st.button("Eliminar gasto"):
     st.session_state.gastos.to_csv(DATA_FILE, index=False)
     st.success("Gasto eliminado correctamente.")
     
-# =====================================================
-# BASE CUENTA DE RESULTADOS — GASTOS MENSUALES
-# =====================================================
 
-st.divider()
-st.subheader("Base Cuenta de Resultados — Gastos mensuales")
-
-# Copiamos el dataframe ya existente de gastos
-df_base = df.copy()
-
-if df_base.empty:
-    st.info("No hay gastos registrados todavía.")
-else:
-    # Aseguramos tipo fecha
-    df_base["fecha"] = pd.to_datetime(df_base["fecha"])
-
-    # Extraemos año-mes
-    df_base["mes"] = df_base["fecha"].dt.to_period("M").astype(str)
-
-    # Agrupamos por mes
-    gastos_mensuales = (
-        df_base
-        .groupby("mes", as_index=False)["coste"]
-        .sum()
-        .rename(columns={"coste": "total_gastos"})
-    )
-
-    # Creamos estructura enero–diciembre del año en curso
-    year_actual = df_base["fecha"].dt.year.max()
-    meses = pd.period_range(
-        start=f"{year_actual}-01",
-        end=f"{year_actual}-12",
-        freq="M"
-    ).astype(str)
-
-    base_cr = pd.DataFrame({"mes": meses})
-    base_cr = base_cr.merge(gastos_mensuales, on="mes", how="left")
-    base_cr["total_gastos"] = base_cr["total_gastos"].fillna(0)
-
-    st.dataframe(base_cr, use_container_width=True)

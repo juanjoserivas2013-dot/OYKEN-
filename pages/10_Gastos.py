@@ -146,49 +146,57 @@ if st.button("Eliminar gasto"):
 # BASE CUENTA DE RESULTADOS
 # Resumen mensual de gastos
 # ===============================
+
 st.markdown("---")
 st.subheader("Base Cuenta de Resultados — Gastos mensuales")
 
-# Aseguramos fecha en formato datetime
-df_gastos["fecha"] = pd.to_datetime(df_gastos["fecha"])
+# Año base (se deduce de los datos si existen)
+if not st.session_state.gastos.empty:
+    anio_base = (
+        st.session_state.gastos["Mes"]
+        .astype(str)
+        .str[:4]
+        .mode()
+        .iloc[0]
+    )
+else:
+    anio_base = pd.Timestamp.today().year
 
-# Selector de año (solo con años existentes)
-años_disponibles = sorted(df_gastos["fecha"].dt.year.unique())
-año_base = st.selectbox(
-    "Año base para Cuenta de Resultados (Gastos)",
-    años_disponibles,
-    index=len(años_disponibles) - 1
-)
+st.caption(f"Año base para Cuenta de Resultados: {anio_base}")
 
-# Diccionario de meses legibles
-MESES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-}
+# Crear estructura enero–diciembre
+meses = [
+    "01", "02", "03", "04", "05", "06",
+    "07", "08", "09", "10", "11", "12"
+]
 
-# Filtrado por año
-df_año = df_gastos[df_gastos["fecha"].dt.year == año_base]
+base_meses = pd.DataFrame({
+    "Mes": [f"{anio_base}-{m}" for m in meses]
+})
 
-# Construcción del resumen mensual
-resumen = []
+# Agrupar gastos reales
+if not st.session_state.gastos.empty:
+    gastos_mensuales = (
+        st.session_state.gastos
+        .groupby("Mes", as_index=False)["Coste (€)"]
+        .sum()
+    )
+else:
+    gastos_mensuales = pd.DataFrame(columns=["Mes", "Coste (€)"])
 
-for mes_num in range(1, 13):
-    total_mes = df_año[df_año["fecha"].dt.month == mes_num]["coste"].sum()
-
-    resumen.append({
-        "Mes": MESES[mes_num],
-        "Gastos (€)": round(total_mes, 2)
-    })
-
-df_base_gastos = pd.DataFrame(resumen)
+# Unir estructura base con datos reales
+df_base = base_meses.merge(
+    gastos_mensuales,
+    on="Mes",
+    how="left"
+).fillna(0)
 
 # Mostrar tabla
-st.dataframe(df_base_gastos, use_container_width=True)
+st.dataframe(
+    df_base.rename(columns={"Coste (€)": "Gastos (€)"}),
+    use_container_width=True
+)
 
 # Total anual
-total_anual = df_base_gastos["Gastos (€)"].sum()
-
-st.markdown(
-    f"### Total anual de gastos\n**{total_anual:,.2f} €**"
-)
+total_anual = df_base["Coste (€)"].sum()
+st.markdown(f"**Total anual de gastos:** {total_anual:,.2f} €")

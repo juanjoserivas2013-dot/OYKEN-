@@ -142,4 +142,62 @@ if st.button("Eliminar gasto"):
     st.session_state.gastos.to_csv(DATA_FILE, index=False)
     st.success("Gasto eliminado correctamente.")
     
+# ===============================
+# BASE CUENTA DE RESULTADOS
+# Resumen mensual de gastos
+# ===============================
+
+st.markdown("---")
+st.subheader("Base Cuenta de Resultados — Gastos mensuales")
+
+# Año base (se deduce de los datos si existen)
+if not st.session_state.gastos.empty:
+    anio_base = (
+        st.session_state.gastos["Mes"]
+        .astype(str)
+        .str[:4]
+        .mode()
+        .iloc[0]
+    )
+else:
+    anio_base = pd.Timestamp.today().year
+
+st.caption(f"Año base para Cuenta de Resultados: {anio_base}")
+
+# Crear estructura enero–diciembre
+meses = [
+    "01", "02", "03", "04", "05", "06",
+    "07", "08", "09", "10", "11", "12"
+]
+
+base_meses = pd.DataFrame({
+    "Mes": [f"{anio_base}-{m}" for m in meses]
+})
+
+# Agrupar gastos reales
+if not st.session_state.gastos.empty:
+    gastos_mensuales = (
+        st.session_state.gastos
+        .groupby("Mes", as_index=False)["Coste (€)"]
+        .sum()
+    )
+else:
+    gastos_mensuales = pd.DataFrame(columns=["Mes", "Coste (€)"])
+
+# Unir estructura base con datos reales
+df_base = base_meses.merge(
+    gastos_mensuales,
+    on="Mes",
+    how="left"
+).fillna(0)
+
+# Mostrar tabla
+st.dataframe(
+    df_base.rename(columns={"Coste (€)": "Gastos (€)"}),
+    use_container_width=True
+)
+
+# Total anual
+total_anual = df_base["Coste (€)"].sum()
+st.markdown(f"**Total anual de gastos:** {total_anual:,.2f} €")
 

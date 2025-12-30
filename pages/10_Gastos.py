@@ -165,7 +165,6 @@ else:
 st.caption(f"Año base para Cuenta de Resultados: {anio_base}")
 
 # Crear estructura enero–diciembre
-
 MESES_TEXTO = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"

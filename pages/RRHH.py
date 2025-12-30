@@ -27,17 +27,26 @@ SS_EMPRESA = 0.33
 EXPORT_FILE = Path("rrhh_coste_mensual.csv")
 
 # =====================================================
-# ESTADO BASE (estructura de puestos)
+# ESTADO GLOBAL (AÑO ACTIVO + PUESTOS)
 # =====================================================
+
+if "anio_rrhh" not in st.session_state:
+    st.session_state.anio_rrhh = 2025
 
 if "puestos" not in st.session_state:
     st.session_state.puestos = []
 
 # =====================================================
-# BLOQUE 1 · ALTA DE PUESTOS
+# BLOQUE 1 · ALTA DE PUESTOS (AÑO AQUÍ)
 # =====================================================
 
 st.subheader("Alta de puestos")
+
+st.session_state.anio_rrhh = st.selectbox(
+    "Año de planificación",
+    list(range(2022, 2031)),
+    index=list(range(2022, 2031)).index(st.session_state.anio_rrhh)
+)
 
 with st.form("alta_puesto", clear_on_submit=True):
 
@@ -66,21 +75,32 @@ with st.form("alta_puesto", clear_on_submit=True):
 
     if guardar and puesto.strip():
         st.session_state.puestos.append({
+            "Año": st.session_state.anio_rrhh,
             "Puesto": puesto.strip(),
             "Bruto anual (€)": float(bruto_anual),
             **necesidad
         })
 
 # =====================================================
-# TABLA · ESTRUCTURA DE PUESTOS
+# TABLA · ESTRUCTURA DE PUESTOS (AÑO ACTIVO)
 # =====================================================
 
-if st.session_state.puestos:
-    df_puestos = pd.DataFrame(st.session_state.puestos)
-    st.subheader("Estructura de puestos")
-    st.dataframe(df_puestos, hide_index=True, use_container_width=True)
+df_puestos = pd.DataFrame(st.session_state.puestos)
+
+df_puestos_anio = df_puestos[
+    df_puestos["Año"] == st.session_state.anio_rrhh
+] if not df_puestos.empty else pd.DataFrame()
+
+st.subheader("Estructura de puestos")
+
+if not df_puestos_anio.empty:
+    st.dataframe(
+        df_puestos_anio.drop(columns=["Año"]),
+        hide_index=True,
+        use_container_width=True
+    )
 else:
-    st.info("Aún no hay puestos definidos.")
+    st.info("No hay puestos definidos para este año.")
 
 st.divider()
 
@@ -92,7 +112,7 @@ st.subheader("Coste de personal — Nómina")
 
 nominas = []
 
-for _, row in df_puestos.iterrows():
+for _, row in df_puestos_anio.iterrows():
     salario_mensual = row["Bruto anual (€)"] / 12
     fila = {"Puesto": row["Puesto"]}
 
@@ -102,7 +122,11 @@ for _, row in df_puestos.iterrows():
     nominas.append(fila)
 
 df_nominas = pd.DataFrame(nominas)
-st.dataframe(df_nominas, hide_index=True, use_container_width=True)
+
+if not df_nominas.empty:
+    st.dataframe(df_nominas, hide_index=True, use_container_width=True)
+else:
+    st.info("Sin datos de nómina.")
 
 st.divider()
 
@@ -111,7 +135,11 @@ st.divider()
 # =====================================================
 
 st.subheader("Seguridad Social y coste empresarial")
-aplicar_ss = st.checkbox("Aplicar Seguridad Social Empresa (33%)", value=True)
+
+aplicar_ss = st.checkbox(
+    "Aplicar Seguridad Social Empresa (33%)",
+    value=True
+)
 
 costes = []
 
@@ -121,6 +149,7 @@ for _, row in df_nominas.iterrows():
     for mes in MESES:
         nomina = row[mes]
         ss = nomina * SS_EMPRESA if aplicar_ss else 0.0
+
         fila[f"{mes} · Nómina"] = round(nomina, 2)
         fila[f"{mes} · SS"] = round(ss, 2)
         fila[f"{mes} · Coste Empresa"] = round(nomina + ss, 2)
@@ -128,7 +157,11 @@ for _, row in df_nominas.iterrows():
     costes.append(fila)
 
 df_costes = pd.DataFrame(costes)
-st.dataframe(df_costes, hide_index=True, use_container_width=True)
+
+if not df_costes.empty:
+    st.dataframe(df_costes, hide_index=True, use_container_width=True)
+else:
+    st.info("Sin datos de coste empresarial.")
 
 st.divider()
 
@@ -141,9 +174,9 @@ st.subheader("Totales mensuales RRHH")
 totales = []
 
 for mes in MESES:
-    nomina = df_costes[f"{mes} · Nómina"].sum()
-    ss = df_costes[f"{mes} · SS"].sum()
-    coste = df_costes[f"{mes} · Coste Empresa"].sum()
+    nomina = df_costes.get(f"{mes} · Nómina", pd.Series()).sum()
+    ss = df_costes.get(f"{mes} · SS", pd.Series()).sum()
+    coste = df_costes.get(f"{mes} · Coste Empresa", pd.Series()).sum()
 
     totales.append({
         "Mes": mes,
@@ -153,22 +186,24 @@ for mes in MESES:
     })
 
 df_totales = pd.DataFrame(totales)
+
 st.dataframe(df_totales, hide_index=True, use_container_width=True)
 
 st.divider()
 
 # =====================================================
-# BLOQUE 5 · PERSISTENCIA
+# BLOQUE 5 · PERSISTENCIA (HEREDA AÑO ACTIVO)
 # =====================================================
 
-st.subheader("Guardar coste RRHH mensual")
-
-anio = st.selectbox("Año de referencia", list(range(2022, 2031)), index=3)
+st.subheader("Guardar RRHH")
 
 df_export = df_totales.copy()
-df_export.insert(0, "Año", anio)
+df_export.insert(0, "Año", st.session_state.anio_rrhh)
 
 df_export.to_csv(EXPORT_FILE, index=False)
 
-st.success("Coste de RRHH mensual guardado correctamente")
+st.success(
+    f"Coste de RRHH del año {st.session_state.anio_rrhh} guardado correctamente"
+)
+
 st.caption("Este coste se integra directamente en la Cuenta de Resultados.")

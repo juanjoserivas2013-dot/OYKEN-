@@ -456,3 +456,22 @@ st.dataframe(
     hide_index=True,
     use_container_width=True
 )
+# -------------------------
+# Persistencia para Totales Operativos (solo lectura)
+# -------------------------
+
+ventas_mensuales_consolidadas = []
+
+for i, fila in tabla_meses.iterrows():
+    ventas_mensuales_consolidadas.append({
+        "anio": anio_actual,
+        "mes": i + 1,  # Enero = 1, Febrero = 2, etc.
+        "origen": "Control Operativo",
+        "concepto": "Ventas Totales",
+        "importe_eur": fila["Ventas del mes (€)"]
+    })
+
+pd.DataFrame(ventas_mensuales_consolidadas).to_csv(
+    "ventas_mensuales_consolidadas.csv",
+    index=False
+)

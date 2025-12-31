@@ -30,6 +30,39 @@ if not dfs:
 
 df = pd.concat(dfs, ignore_index=True)
 
+# =========================
+# LECTURA COMPRAS MENSUALES
+# =========================
+
+COMPRAS_FILE = Path("compras.csv")
+
+if COMPRAS_FILE.exists():
+    df_compras = pd.read_csv(COMPRAS_FILE)
+
+    # Normalizar fecha
+    df_compras["Fecha"] = pd.to_datetime(
+        df_compras["Fecha"],
+        dayfirst=True,
+        errors="coerce"
+    )
+
+    # Agregación mensual
+    compras_mensuales = (
+        df_compras
+        .assign(
+            anio=df_compras["Fecha"].dt.year,
+            mes=df_compras["Fecha"].dt.month
+        )
+        .groupby(["anio", "mes"], as_index=False)
+        .agg(importe_eur=("Coste (€)", "sum"))
+    )
+
+    compras_mensuales["origen"] = "Compras"
+    compras_mensuales["concepto"] = "Compras Totales"
+
+    # Unir a Totales Operativos
+    df = pd.concat([df, compras_mensuales], ignore_index=True)
+
 if df.empty:
     st.info("Totales Operativos no contiene registros.")
     st.stop()

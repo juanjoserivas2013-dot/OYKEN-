@@ -142,3 +142,35 @@ if st.button("Eliminar gasto"):
     st.session_state.gastos.to_csv(DATA_FILE, index=False)
     st.success("Gasto eliminado correctamente.")
     
+# =========================================================
+# GASTOS MENSUALES · RESUMEN ANUAL
+# =========================================================
+st.divider()
+st.subheader("Gastos mensuales")
+
+# Asegurar fecha como datetime
+df_gastos = st.session_state.gastos.copy()
+df_gastos["Fecha"] = pd.to_datetime(df_gastos["Fecha"], dayfirst=True)
+
+anio_actual = date.today().year
+
+datos_meses = []
+
+for mes in range(1, 13):
+    gasto_mes = df_gastos[
+        (df_gastos["Fecha"].dt.year == anio_actual) &
+        (df_gastos["Fecha"].dt.month == mes)
+    ]["Coste (€)"].sum()   # ← CAMBIA AQUÍ si tu columna se llama distinto
+
+    datos_meses.append({
+        "Mes": date(1900, mes, 1).strftime("%B"),
+        "Gastos del mes (€)": round(gasto_mes, 2)
+    })
+
+tabla_gastos = pd.DataFrame(datos_meses)
+
+st.dataframe(
+    tabla_gastos,
+    hide_index=True,
+    use_container_width=True
+)

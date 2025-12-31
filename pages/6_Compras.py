@@ -236,3 +236,35 @@ with st.container(border=True):
             st.session_state.compras.to_csv(COMPRAS_FILE, index=False)
             st.success("Compra eliminada")
 
+# =========================================================
+# COMPRAS MENSUALES · TABLA ANUAL
+# =========================================================
+st.divider()
+st.subheader("Compras mensuales")
+
+anio_actual = date.today().year
+
+# Asegurar tipo fecha
+df_compras = st.session_state.compras.copy()
+df_compras["Fecha"] = pd.to_datetime(df_compras["Fecha"], dayfirst=True)
+
+datos_meses = []
+
+for mes in range(1, 13):
+    total_mes = df_compras[
+        (df_compras["Fecha"].dt.year == anio_actual) &
+        (df_compras["Fecha"].dt.month == mes)
+    ]["Coste (€)"].sum()
+
+    datos_meses.append({
+        "Mes": date(1900, mes, 1).strftime("%B"),
+        "Compras del mes (€)": round(total_mes, 2)
+    })
+
+tabla_compras_mensuales = pd.DataFrame(datos_meses)
+
+st.dataframe(
+    tabla_compras_mensuales,
+    hide_index=True,
+    use_container_width=True
+)

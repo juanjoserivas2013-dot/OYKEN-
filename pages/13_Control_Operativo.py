@@ -390,6 +390,8 @@ c_mes, c_ano = st.columns(2)
 with c_mes:
     mes_sel = st.selectbox(
         "Mes",
+        key="mes_cierre_ventas"
+    )
         options=list(range(1, 13)),
         index=fecha_hoy.month - 1,
         format_func=lambda x: date(1900, x, 1).strftime("%B")
@@ -398,6 +400,8 @@ with c_mes:
 with c_ano:
     ano_sel = st.selectbox(
         "Año",
+        "key="anio_cierre_ventas
+)
         options=sorted(df["fecha"].dt.year.unique()),
         index=len(sorted(df["fecha"].dt.year.unique())) - 1
     )

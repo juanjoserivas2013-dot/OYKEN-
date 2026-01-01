@@ -194,3 +194,23 @@ st.dataframe(df_totales, hide_index=True, use_container_width=True)
 st.caption(
     "Este consolidado alimenta directamente la Cuenta de Resultados."
 )
+# ==================================================
+# COSTE MENSUAL RRHH (TABLA CONSOLIDADA)
+# ==================================================
+
+st.divider()
+st.subheader("Coste mensual")
+
+# df_totales ya existe y contiene:
+# Mes | Nómina (€) | Seguridad Social (€) | Coste Empresa (€)
+
+coste_mensual = df_totales[["Mes", "Coste Empresa (€)"]].copy()
+coste_mensual = coste_mensual.rename(
+    columns={"Coste Empresa (€)": "Coste mensual (€)"}
+)
+
+st.dataframe(
+    coste_mensual,
+    hide_index=True,
+    use_container_width=True
+)

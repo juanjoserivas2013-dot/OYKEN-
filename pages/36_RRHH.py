@@ -199,7 +199,7 @@ st.caption(
 # ==================================================
 
 st.divider()
-st.subheader("Coste mensual")
+st.subheader("Coste mensual RRHH")
 
 # df_totales ya existe y contiene:
 # Mes | Nómina (€) | Seguridad Social (€) | Coste Empresa (€)

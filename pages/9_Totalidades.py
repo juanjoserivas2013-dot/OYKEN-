@@ -11,35 +11,6 @@ st.title("OYKEN · Totalidades")
 st.caption("Ventas mensuales consolidadas")
 
 # =========================
-# CONTEXTO TEMPORAL
-# =========================
-
-st.subheader("Contexto temporal")
-
-anio_actual = date.today().year
-
-MESES = [
-    "January", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-]
-
-col1, col2 = st.columns(2)
-
-with col1:
-    anio_sel = st.selectbox(
-        "Año",
-        options=[anio_actual],
-        index=0
-    )
-
-with col2:
-    mes_sel = st.selectbox(
-        "Mes",
-        options=["Todos"] + MESES,
-        index=0
-    )
-
-# =========================
 # CARGA DEL CSV
 # =========================
 

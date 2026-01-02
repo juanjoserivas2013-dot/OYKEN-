@@ -8,7 +8,7 @@ st.set_page_config(
 
 st.title("OYKEN")
 st.caption("Consultoría creadora de Soluciones Generativas, apoyada en infraestructura cognitiva Propia"
-          )
+)
 
 st.markdown("""
 OYKEN genera lectura operativa, escenarios de decisión y alerta inteligente adaptadas a cada negocio,

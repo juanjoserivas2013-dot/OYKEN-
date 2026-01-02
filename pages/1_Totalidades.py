@@ -5,7 +5,7 @@ from datetime import date
 # CONTEXTO TEMPORAL
 # =========================
 
-st.subheader("Contexto temporal")
+st.subheader("OYKEN Totalidades")
 st.caption("Selecciona el periodo de análisis")
 
 MESES = [

@@ -438,16 +438,26 @@ anio_actual = date.today().year
 
 datos_meses = []
 
-for mes in range(1, 13):
-    ventas_mes = df[
-        (df["fecha"].dt.year == anio_actual) &
-        (df["fecha"].dt.month == mes)
-    ]["ventas_total_eur"].sum()
+MESES_ES = {
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre"
+}
 
     datos_meses.append({
-        "Mes": date(1900, mes, 1).strftime("%B"),
+        "Mes": MESES_ES[mes],
         "Ventas del mes (€)": round(ventas_mes, 2)
     })
+
 
 tabla_meses = pd.DataFrame(datos_meses)
 

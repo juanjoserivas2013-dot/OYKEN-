@@ -451,6 +451,10 @@ for mes in range(1, 13):
 
 tabla_meses = pd.DataFrame(datos_meses)
 
+from pathlib import Path
+OUTPUT_FILE = Path("ventas_mensuales.csv")
+tabla_meses.to_csv(OUTPUT_FILE, index=False)
+
 st.dataframe(
     tabla_meses,
     hide_index=True,

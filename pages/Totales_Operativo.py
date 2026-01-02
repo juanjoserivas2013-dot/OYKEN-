@@ -2,30 +2,6 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-st.markdown("""
-<style>
-/* Chips de multiselect */
-div[data-baseweb="tag"] {
-    background-color: #f3f3f3 !important;
-    color: #333333 !important;
-    border: 1px solid #d0d0d0 !important;
-    border-radius: 6px !important;
-    font-weight: 500;
-}
-
-/* Icono de cerrar (x) */
-div[data-baseweb="tag"] svg {
-    color: #777777 !important;
-}
-
-/* Hover */
-div[data-baseweb="tag"]:hover {
-    background-color: #eaeaea !important;
-    border-color: #c0c0c0 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # =========================
 # CONFIGURACIÓN DE PÁGINA
 # =========================

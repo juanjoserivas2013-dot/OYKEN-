@@ -19,7 +19,7 @@ st.subheader("Contexto temporal")
 anio_actual = date.today().year
 
 MESES = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "January", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 

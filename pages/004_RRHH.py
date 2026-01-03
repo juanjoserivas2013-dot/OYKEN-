@@ -194,23 +194,84 @@ st.dataframe(df_totales, hide_index=True, use_container_width=True)
 st.caption(
     "Este consolidado alimenta directamente la Cuenta de Resultados."
 )
-# ==================================================
-# COSTE MENSUAL RRHH (TABLA CONSOLIDADA)
-# ==================================================
+# =====================================================
+# TOTALES MENSUALES RRHH
+# =====================================================
 
 st.divider()
-st.subheader("Coste mensual RRHH")
+st.subheader("Totales mensuales RRHH")
 
-# df_totales ya existe y contiene:
-# Mes | Nómina (€) | Seguridad Social (€) | Coste Empresa (€)
+# -------------------------
+# MAPA MESES ESPAÑOL
+# -------------------------
+MESES_ES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+]
 
-coste_mensual = df_totales[["Mes", "Coste Empresa (€)"]].copy()
-coste_mensual = coste_mensual.rename(
-    columns={"Coste Empresa (€)": "Coste mensual (€)"}
-)
+# -------------------------
+# SELECTORES
+# -------------------------
+c1, c2 = st.columns(2)
+
+with c1:
+    anio_sel = st.selectbox(
+        "Año",
+        sorted(df_puestos["Año"].unique()),
+        index=len(sorted(df_puestos["Año"].unique())) - 1,
+        key="anio_rrhh_mensual"
+    )
+
+with c2:
+    mes_sel = st.selectbox(
+        "Mes",
+        options=[0] + list(range(1, 13)),
+        format_func=lambda x: "Todos los meses" if x == 0 else MESES_ES[x-1],
+        key="mes_rrhh_mensual"
+    )
+
+# -------------------------
+# FILTRADO POR AÑO
+# -------------------------
+df_costes_filtrado = df_costes.copy()
+
+# 🔒 Forzar numéricos (CRÍTICO)
+for col in df_costes_filtrado.columns:
+    if "€" in col:
+        df_costes_filtrado[col] = pd.to_numeric(
+            df_costes_filtrado[col],
+            errors="coerce"
+        ).fillna(0)
+
+# -------------------------
+# CONSTRUCCIÓN TABLA
+# -------------------------
+totales = []
+
+for i, mes_nombre in enumerate(MESES_ES, start=1):
+    if mes_sel != 0 and i != mes_sel:
+        continue
+
+    nomina = df_costes_filtrado.get(f"{mes_nombre} · Nómina", pd.Series()).sum()
+    ss = df_costes_filtrado.get(f"{mes_nombre} · SS", pd.Series()).sum()
+    coste = df_costes_filtrado.get(f"{mes_nombre} · Coste Empresa", pd.Series()).sum()
+
+    totales.append({
+        "Mes": mes_nombre,
+        "Nómina (€)": round(nomina, 2),
+        "Seguridad Social (€)": round(ss, 2),
+        "Coste Empresa (€)": round(coste, 2)
+    })
+
+df_totales = pd.DataFrame(totales)
 
 st.dataframe(
-    coste_mensual,
+    df_totales,
     hide_index=True,
     use_container_width=True
+)
+
+st.metric(
+    "Coste RRHH período seleccionado",
+    f"{df_totales['Coste Empresa (€)'].sum():,.2f} €"
 )

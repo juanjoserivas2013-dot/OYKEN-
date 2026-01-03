@@ -394,15 +394,18 @@ with c_mes:
         "Mes",
         options=list(range(1, 13)),
         index=fecha_hoy.month - 1,
-        format_func=lambda x: date(1900, x, 1).strftime("%B")
+        format_func=lambda x: date(1900, x, 1).strftime("%B"),
+        key="mes_cierre_mensual"
     )
 
 with c_ano:
     ano_sel = st.selectbox(
         "Año",
         options=sorted(df["fecha"].dt.year.unique()),
-        index=len(sorted(df["fecha"].dt.year.unique())) - 1
+        index=len(sorted(df["fecha"].dt.year.unique())) - 1,
+        key="anio_cierre_mensual"
     )
+
 
 df_cierre = df[
     (df["fecha"].dt.month == mes_sel) &
@@ -453,14 +456,16 @@ with col1:
     anio_sel = st.selectbox(
         "Año",
         anios_disponibles,
-        index=len(anios_disponibles) - 1
+        index=len(anios_disponibles) - 1,
+        key="anio_tabla_mensual"
     )
 
 with col2:
     mes_sel = st.selectbox(
         "Mes",
         options=[0] + list(MESES_ES.keys()),
-        format_func=lambda x: "Todos los meses" if x == 0 else MESES_ES[x]
+        format_func=lambda x: "Todos los meses" if x == 0 else MESES_ES[x],
+        key="mes_tabla_mensual"
     )
 
 # -------------------------
